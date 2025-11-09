@@ -8,13 +8,17 @@ set_target_properties(slicer PROPERTIES
     CXX_EXTENSIONS NO
 )
 
-target_include_directories(slicer PUBLIC
+target_include_directories(slicer
+PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/vendor/stl_reader
 )
 
 set(SOURCES
     src/slicer/bvh.cpp
     src/slicer/bvh.hpp
+    src/slicer/stl.cpp
+    src/slicer/stl.hpp
 )
 
 target_sources(slicer PUBLIC ${SOURCES})
@@ -23,6 +27,7 @@ target_sources(slicer PUBLIC ${SOURCES})
 
 add_executable(slicer_tests
     src/slicer/bvh.test.cpp
+    src/slicer/stl.test.cpp
 )
 
 set_target_properties(slicer_tests PROPERTIES

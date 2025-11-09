@@ -1,3 +1,6 @@
 [submodule "vendor/catch2"]
 	path = vendor/catch2
 	url = git@github.com:catchorg/Catch2.git
+[submodule "vendor/stl_reader"]
+	path = vendor/stl_reader
+	url = git@github.com:sreiter/stl_reader.git
