@@ -18,3 +18,26 @@ set(SOURCES
 )
 
 target_sources(slicer PUBLIC ${SOURCES})
+
+# Tests
+
+add_executable(slicer_tests
+    src/slicer/bvh.test.cpp
+)
+
+set_target_properties(slicer_tests PROPERTIES
+    CXX_STANDARD 20
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
+
+target_link_libraries(
+    slicer_tests
+PRIVATE
+    Catch2::Catch2WithMain
+    slicer
+)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(slicer_tests)
