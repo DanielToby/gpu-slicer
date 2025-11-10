@@ -15,10 +15,13 @@ PUBLIC
 )
 
 set(SOURCES
+    src/slicer/bbox.cpp
     src/slicer/bbox.hpp
     src/slicer/bvh.cpp
     src/slicer/bvh.hpp
-    src/slicer/fwd.hpp
+    src/slicer/clipper.cpp
+    src/slicer/clipper.hpp
+    src/slicer/geometry.hpp
     src/slicer/mesh.cpp
     src/slicer/mesh.hpp
     src/slicer/slicer.cpp
@@ -36,6 +39,7 @@ target_sources(slicer PUBLIC ${SOURCES})
 add_executable(slicer_tests
     src/slicer/bbox.test.cpp
     src/slicer/bvh.test.cpp
+    src/slicer/clipper.test.cpp
     src/slicer/mesh.test.cpp
     src/slicer/slicer.test.cpp
     src/slicer/stl.test.cpp
