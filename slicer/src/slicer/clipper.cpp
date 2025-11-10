@@ -22,19 +22,6 @@ namespace {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-//! Returns the point at which the line described by p0 and p1 intersects yPosition.
-[[nodiscard]] Vec3 getIntersection(Vec3 p0, Vec3 p1, float zPosition) {
-    // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
-    const auto line = Line3D::fromPoints(p0, p1);
-
-    // For any point X: dot((P0 - X), N) = 0, where P0 is zPosition at the origin, and N (normal) is the Z-axis.
-    const auto plane = Plane{{0, 0, zPosition}, {0, 0, 1}};
-
-    // Substituting line equation into plane and solving: t = dot((P0 - L0), N) / dot(D, N).
-    const auto t = dot((plane.p0 - line.p0), plane.normal) / dot(line.direction, plane.normal);
-    return line.p0 + line.direction * t;
-}
-
 [[nodiscard]] Polygon3D clipAbove(const Polygon3D& polygon, float zPosition) {
     if (!polygon.isValid()) {
         throw std::invalid_argument("Invalid polygon.");
@@ -64,12 +51,16 @@ namespace {
         auto p0 = polygon.vertices.at(i0);
         auto p1 = polygon.vertices.at(i1);
 
-        if (p1.y >= zPosition) {
+        if (p1.z >= zPosition) {
             if (isAbove) {
                 result.vertices.push_back(p1);
             } else {
                 // Crossing yPosition! Find intersection:
-                result.vertices.push_back(getIntersection(p0, p1, zPosition));
+                if (auto intersection = detail::intersect(p0, p1, zPosition)) {
+                    result.vertices.push_back(*intersection);
+                } else {
+                    throw std::runtime_error("Invalid intersection.");
+                }
 
                 // Is above should only become true one time. This vertex was the initial vertex.
                 if (p1 != result.vertices.at(0)) {
@@ -79,7 +70,11 @@ namespace {
         } else {
             if (isAbove) {
                 //! Crossing yPosition! Find intersection:
-                result.vertices.push_back(getIntersection(p0, p1, zPosition));
+                if (auto intersection = detail::intersect(p0, p1, zPosition)) {
+                    result.vertices.push_back(*intersection);
+                } else {
+                    throw std::runtime_error("Invalid intersection.");
+                }
             }
             isAbove = false;
         }
@@ -88,6 +83,27 @@ namespace {
     return result;
 }
 
+}
+
+std::optional<Vec3> detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
+    // Special case: line along zPosition:
+    if (p0.z == zPosition && p1.z == zPosition) {
+        return p0;
+    }
+
+    if (!(p0.z <= zPosition && p1.z > zPosition) && !(p1.z <= zPosition && p0.z > zPosition)) {
+        return std::nullopt;
+    }
+
+    // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
+    const auto line = Line3D::fromPoints(p0, p1);
+
+    // For any point X: dot((P0 - X), N) = 0, where P0 is zPosition at the origin, and N (normal) is the Z-axis.
+    const auto plane = Plane{{0, 0, zPosition}, {0, 0, 1}};
+
+    // Substituting line equation into plane and solving: t = dot((P0 - L0), N) / dot(D, N).
+    const auto t = dot((plane.p0 - line.p0), plane.normal) / dot(line.direction, plane.normal);
+    return line.p0 + line.direction * t;
 }
 
 Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion) {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ranges>
 #include <vector>
 
 namespace slicer {
@@ -50,6 +51,20 @@ struct Vec3 {
 template <typename T>
 struct Polygon {
     std::vector<T> vertices;
+
+    template <typename Tx>
+    [[nodiscard]] Polygon transform(Tx&& tx) const {
+        auto polys = vertices | std::views::transform(tx);
+        return {{polys.begin(), polys.end()}};
+    }
+
+    [[nodiscard]] Polygon scale(float scalar) const {
+        return this->transform([&scalar](const auto& v) { return v * scalar; });
+    }
+
+    [[nodiscard]] Polygon translate(const T& amount) const {
+        return this->transform([&amount](const auto& v) { return v + amount; });
+    }
 
     [[nodiscard]] bool operator==(const Polygon& other) const { return vertices == other.vertices; }
     [[nodiscard]] bool isEmpty() const { return vertices.empty(); }
