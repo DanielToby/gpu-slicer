@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "slicer/mesh.hpp"
 #include "slicer/stl.hpp"
 
-TEST_CASE("Load .stl file") {
+TEST_CASE("getAABB") {
     auto mesh = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
-    REQUIRE(mesh.triangles.size() > 0);
+    auto bbox = slicer::getAABB(mesh);
+    CHECK(!bbox.empty());
 }

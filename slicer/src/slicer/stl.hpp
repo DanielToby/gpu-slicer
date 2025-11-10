@@ -2,10 +2,10 @@
 
 #include <vector>
 
-#include "slicer/fwd.hpp"
+#include "slicer/mesh.hpp"
 
 namespace slicer {
 
-std::vector<Triangle> loadStl(const std::string& fileName) noexcept(false);
+Mesh loadStl(const std::string& fileName) noexcept(false);
 
 }

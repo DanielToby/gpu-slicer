@@ -1,11 +1,25 @@
 #pragma once
 
-#include <array>
-
 namespace slicer {
 
-using Vec3 = std::array<float, 3>;
-struct Triangle {
+struct Vec2 {
+    float x;
+    float y;
+};
+
+struct Vec3 {
+    float x;
+    float y;
+    float z;
+};
+
+struct Triangle2D {
+    Vec2 v0;
+    Vec2 v1;
+    Vec2 v2;
+};
+
+struct Triangle3D {
     Vec3 normal;
     Vec3 v0;
     Vec3 v1;
