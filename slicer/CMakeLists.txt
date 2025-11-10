@@ -25,6 +25,8 @@ set(SOURCES
     src/slicer/slicer.hpp
     src/slicer/stl.cpp
     src/slicer/stl.hpp
+    src/slicer/svg.cpp
+    src/slicer/svg.hpp
 )
 
 target_sources(slicer PUBLIC ${SOURCES})

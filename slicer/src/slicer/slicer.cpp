@@ -24,10 +24,6 @@ namespace {
     return result;
 }
 
-[[nodiscard]] Vec2 toVec2(const Vec3& vec3) {
-    return {vec3.x, vec3.y};
-}
-
 [[nodiscard]] Triangle2D toTriangle2D(const Triangle3D& triangle) {
     return {toVec2(triangle.v0), toVec2(triangle.v1), toVec2(triangle.v2)};
 }
