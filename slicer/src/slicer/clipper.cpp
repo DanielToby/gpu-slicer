@@ -1,37 +1,27 @@
 #include "slicer/clipper.hpp"
 
+#include <iostream>
+
 namespace slicer {
 
 namespace {
 
-//! Starting at or crossing the zPosition from outside the keepRegion is considered entering.
-[[nodiscard]] bool entersRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+[[nodiscard]] bool insideInclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return (p0.z <= zPosition && zPosition < p1.z);
+        return p.z >= zPosition;
     case KeepRegion::Below:
-        return (p0.z >= zPosition && zPosition > p1.z);
+        return p.z <= zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
 
-//! Crossing or arriving at the zPosition from inside the keepRegion is considered exiting.
-[[nodiscard]] bool exitsRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+[[nodiscard]] bool insideExclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return (p0.z > zPosition && zPosition >= p1.z);
+        return p.z > zPosition;
     case KeepRegion::Below:
-        return (p0.z < zPosition && zPosition <= p1.z);
-    }
-    throw std::invalid_argument("Invalid keep region");
-}
-
-[[nodiscard]] bool inRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
-    switch (keepRegion) {
-    case KeepRegion::Above:
-        return (p0.z > zPosition && p1.z > zPosition);
-    case KeepRegion::Below:
-        return (p0.z < zPosition && p1.z < zPosition);
+        return p.z < zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -56,19 +46,34 @@ namespace {
     throw std::invalid_argument("Invalid keep region");
 }
 
+[[nodiscard]] bool allPointsInRegion(const std::vector<Vec3>& vertices, float zPosition, KeepRegion keepRegion) {
+    switch (keepRegion) {
+    case KeepRegion::Above:
+        return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
+            return v.z >= zPosition;
+        });
+    case KeepRegion::Below:
+        //! All points on ZPosition for KeepRegion::Below is considered out of bounds.
+        if (std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
+                return v.z == zPosition;
+            })) {
+            return false;
+        }
+        return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
+            return v.z <= zPosition;
+        });
+    }
+    throw std::invalid_argument("Invalid keep region");
+}
+
 [[nodiscard]] float dot(const Vec3& a, const Vec3& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-[[nodsicard]] bool allPointsOnZPosition(const std::vector<Vec3>& vertices, float zPosition) {
-    return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-        return v.z == zPosition;
-    });
 }
 
-}
-
-Vec3 detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
+namespace detail {
+Vec3 intersect(const Vec3& p0, const Vec3& p1, float zPosition) {
     // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
     const auto line = Line3D::fromPoints(p0, p1);
 
@@ -80,13 +85,30 @@ Vec3 detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
     return line.p0 + line.direction * t;
 }
 
+LineBehavior lineBehavior(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+    if (insideInclusive(p0, zPosition, keepRegion) && insideInclusive(p1, zPosition, keepRegion)) {
+        return LineBehavior::RemainsIn;
+    }
+    if (insideInclusive(p0, zPosition, keepRegion) && !insideInclusive(p1, zPosition, keepRegion)) {
+        return LineBehavior::Exits;
+    }
+    if (!insideExclusive(p0, zPosition, keepRegion) && !insideExclusive(p1, zPosition, keepRegion)) {
+        return LineBehavior::RemainsOut;
+    }
+    if (!insideInclusive(p0, zPosition, keepRegion) && insideExclusive(p1, zPosition, keepRegion)) {
+        return LineBehavior::Enters;
+    }
+    throw std::runtime_error("Unhandled line behavior.");
+}
+
+}
+
 Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion) {
     if (!polygon.isValid()) {
         throw std::invalid_argument("Invalid polygon.");
     }
 
-    // Special case: All points on zPosition:
-    if (allPointsOnZPosition(polygon.vertices, zPosition) && keepRegion == KeepRegion::Above) {
+    if (allPointsInRegion(polygon.vertices, zPosition, keepRegion)) {
         return polygon;
     }
 
@@ -101,16 +123,28 @@ Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion)
         const auto p0 = polygon.vertices[(i + *offset) % polygon.vertices.size()];
         const auto p1 = polygon.vertices[(i + *offset + 1) % polygon.vertices.size()];
 
-        if (entersRegion(p0, p1, zPosition, keepRegion)) {
-            result.vertices.push_back(detail::intersect(p0, p1, zPosition));
-        } else if (exitsRegion(p0, p1, zPosition, keepRegion)) {
+        using detail::LineBehavior;
+        switch (detail::lineBehavior(p0, p1, zPosition, keepRegion)) {
+        case LineBehavior::RemainsIn: {
             result.vertices.push_back(p0);
-            result.vertices.push_back(detail::intersect(p0, p1, zPosition));
-        } else if (inRegion(p0, p1, zPosition, keepRegion)) {
+            break;
+        }
+        case LineBehavior::Exits: {
             result.vertices.push_back(p0);
+            if (p0.z != zPosition) {
+                // Special case: p0 on Z -> p1 out is considered an exit. Don't double-count p0.
+                result.vertices.push_back(detail::intersect(p0, p1, zPosition));
+            }
+            break;
+        }
+        case LineBehavior::Enters: {
+            result.vertices.push_back(detail::intersect(p0, p1, zPosition));
+            break;
+        }
+        case LineBehavior::RemainsOut:
+            break;
         }
     }
-
     return result;
 }
 

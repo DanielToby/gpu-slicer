@@ -3,34 +3,35 @@
 
 #include "slicer/clipper.hpp"
 
+#include <iostream>
+
 namespace {
 
-//! Returns a square parallel with the XZ-plane.
-[[nodiscard]] slicer::Polygon3D getSquare() {
-    return {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}};
-}
-
-//! Returns a triangle parallel with the XZ-plane.
-[[nodiscard]] slicer::Polygon3D getTrianglePointingDown() {
-    return {{{0, 0, 1}, {.5, 0, 0}, {1, 0, 1}}};
-}
-
-//! Returns a triangle parallel with the XZ-plane.
-[[nodiscard]] slicer::Polygon3D getTrianglePointingUp() {
-    return {{{0, 0, 0}, {1, 0, 0}, {.5, 0, 1}}};
-}
-
-//! For testing winding-invariance.
+//! For testing winding invariance.
 [[nodiscard]] slicer::Polygon3D reverseWinding(const slicer::Polygon3D& polygon) {
     auto vertices = polygon.vertices;
     std::ranges::reverse(vertices);
     return {{std::move(vertices)}};
 }
 
+//! For testing first-vertex invariance.
+[[nodiscard]] std::vector<slicer::Polygon3D> getAllStartVertexCombinations(const slicer::Polygon3D& polygon) {
+    std::vector<slicer::Polygon3D> result;
+    for (auto i = 0; i < polygon.vertices.size(); ++i) {
+        auto copy = polygon;
+        std::ranges::rotate(copy.vertices, copy.vertices.begin() + i);
+        result.emplace_back(std::move(copy));
+    }
+    return result;
+}
+
 //! Compares a and b, including their order, without considering the start position.
 bool compareIgnoringStart(const slicer::Polygon3D& a, const slicer::Polygon3D& b) {
+    if (a.vertices.size() != b.vertices.size()) {
+        return false;
+    }
     if (a.isEmpty()) {
-        return b.isEmpty();
+        return true;
     }
 
     auto matchesFirst = [&b](const auto& v) { return v == b.vertices.front(); };
@@ -54,6 +55,15 @@ bool compareIgnoringStart(const slicer::Polygon3D& a, const slicer::Polygon3D& b
     result += "]";
     return result;
 }
+
+struct LineBehaviorUnitTest {
+    std::string description;
+    slicer::Vec3 p0;
+    slicer::Vec3 p1;
+    float zPosition;
+    slicer::KeepRegion keepRegion;
+    slicer::detail::LineBehavior expectedBehavior;
+};
 
 struct ClipUnitTest {
     std::string description;
@@ -115,117 +125,299 @@ TEST_CASE("intersect: negative slope diagonal line below 0") {
     CHECK(intersection == slicer::Vec3{-.5, -.5, -.5});
 }
 
-TEST_CASE("slicer::clip") {
+TEST_CASE("lineBehavior") {
+    using slicer::KeepRegion;
+    using slicer::detail::LineBehavior;
+
     auto testCase = GENERATE(
-        ClipUnitTest{
-            .description = "Clip: polygon entirely above zPosition",
-            .input = getSquare(),
-            .zPosition = -1,
-            .expectedAbove = getSquare(),
-            .expectedBelow = slicer::Polygon3D{}
-        },
-        ClipUnitTest{
-            .description = "Clip: polygon entirely above zPosition (negative Z)",
-            .input = getSquare().translate({0, 0, -1}),
-            .zPosition = -2,
-            .expectedAbove = getSquare().translate({0, 0, -1}),
-            .expectedBelow = slicer::Polygon3D{}
-        },
-        ClipUnitTest{
-            .description = "Clip: polygon entirely below zPosition",
-            .input = getSquare(),
-            .zPosition = 2,
-            .expectedAbove = slicer::Polygon3D{},
-            .expectedBelow = getSquare()
-        },
-        ClipUnitTest{
-            .description = "Clip: base of polygon exactly on zPosition",
-            .input = getSquare(),
+        LineBehaviorUnitTest{
+            .description = "p0 is in, p1 is in (above)",
+            .p0 = {0, 0, 1},
+            .p1 = {0, 0, 2},
             .zPosition = 0,
-            .expectedAbove = getSquare(),
-            .expectedBelow = slicer::Polygon3D{}
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::RemainsIn
         },
-        ClipUnitTest{
-            .description = "Clip: base of polygon exactly on zPosition (negative Z)",
-            .input = getSquare().translate({0, 0, -1}),
-            .zPosition = -1,
-            .expectedAbove = getSquare().translate({0, 0, -1}),
-            .expectedBelow = slicer::Polygon3D{}
+        LineBehaviorUnitTest{
+            .description = "p0 is in, p1 is in (below)",
+            .p0 = {0, 0, 1},
+            .p1 = {0, 0, 2},
+            .zPosition = 3,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::RemainsIn
         },
-        ClipUnitTest{
-            .description = "Clip: top of polygon exactly on zPosition",
-            .input = getSquare(),
+        LineBehaviorUnitTest{
+            .description = "p0 is on, p1 is on (above)",
+            .p0 = {0, 0, 1},
+            .p1 = {1, 0, 1},
             .zPosition = 1,
-            .expectedAbove = slicer::Polygon3D{},
-            .expectedBelow = getSquare()
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::RemainsIn
         },
-        ClipUnitTest{
-            .description = "Clip: top of polygon exactly on zPosition (negative Z)",
-            .input = getSquare().translate({0, 0, -1}),
+        LineBehaviorUnitTest{
+            .description = "p0 is on, p1 is on (below)",
+            .p0 = {0, 0, 1},
+            .p1 = {1, 0, 1},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::RemainsIn
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is in, p1 is out (above)",
+            .p0 = {0, 0, 2},
+            .p1 = {0, 0, 0},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::Exits
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is in, p1 is out (below)",
+            .p0 = {0, 0, 0},
+            .p1 = {0, 0, 2},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::Exits
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is on, p1 is out (above)",
+            .p0 = {0, 0, 1},
+            .p1 = {0, 0, 0},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::Exits
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is on, p1 is out (below)",
+            .p0 = {0, 0, 0},
+            .p1 = {0, 0, 1},
             .zPosition = 0,
-            .expectedAbove = slicer::Polygon3D{},
-            .expectedBelow = getSquare().translate({0, 0, -1})
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::Exits
         },
-        ClipUnitTest{
-            .description = "Clip: square split by zPosition",
-            .input = getSquare(),
-            .zPosition = .5,
-            .expectedAbove = {{{0, 0, .5}, {1, 0, .5}, {1, 0, 1}, {0, 0, 1}}},
-            .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, .5}, {0, 0, .5}}}
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is out (above)",
+            .p0 = {0, 0, 0},
+            .p1 = {0, 0, 1},
+            .zPosition = 2,
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::RemainsOut
         },
-        ClipUnitTest{
-            .description = "Clip: triangle pointing down",
-            .input = getTrianglePointingDown(),
-            .zPosition = .5,
-            .expectedAbove = {{{.25, 0, .5}, {.75, 0, .5}, {1, 0, 1}, {0, 0, 1}}},
-            .expectedBelow = {{{.25, 0, .5}, {.5, 0, 0}, {.75, 0, .5}}}
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is out (below)",
+            .p0 = {0, 0, 2},
+            .p1 = {0, 0, 1},
+            .zPosition = 0,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::RemainsOut
         },
-        ClipUnitTest{
-            .description = "Clip: triangle pointing up",
-            .input = getTrianglePointingUp(),
-            .zPosition = .5,
-            .expectedAbove = {{{.25, 0, .5}, {.75, 0, .5}, {.5, 0, 1}}},
-            .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {.75, 0, 0.5}, {.25, 0, .5}}}
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is in (above)",
+            .p0 = {0, 0, 0},
+            .p1 = {0, 0, 2},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::Enters
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is in (below)",
+            .p0 = {0, 0, 2},
+            .p1 = {0, 0, 0},
+            .zPosition = 1,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::Enters
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is on (above)",
+            .p0 = {0, 0, 0},
+            .p1 = {0, 0, 2},
+            .zPosition = 2,
+            .keepRegion = KeepRegion::Above,
+            .expectedBehavior = LineBehavior::RemainsOut
+        },
+        LineBehaviorUnitTest{
+            .description = "p0 is out, p1 is on (below)",
+            .p0 = {0, 0, 2},
+            .p1 = {0, 0, 0},
+            .zPosition = 0,
+            .keepRegion = KeepRegion::Below,
+            .expectedBehavior = LineBehavior::RemainsOut
         }
     );
 
     INFO(testCase.description);
-    {
-        auto input = testCase.input;
-        auto aboveRegion = slicer::clip(testCase.input, testCase.zPosition, slicer::KeepRegion::Above);
+    CHECK(slicer::detail::lineBehavior(testCase.p0, testCase.p1, testCase.zPosition, testCase.keepRegion) == testCase.expectedBehavior);
+}
 
-        INFO("Input: " + toString(input));
-        INFO("ZPosition: " + std::to_string(testCase.zPosition));
+ TEST_CASE("slicer::clip") {
+     auto testCase = GENERATE(
+         ClipUnitTest{
+             .description = "Clip: polygon entirely above zPosition",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .zPosition = -1,
+             .expectedAbove = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: polygon entirely above zPosition (negative Z)",
+             .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
+             .zPosition = -2,
+             .expectedAbove = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: polygon entirely below zPosition",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .zPosition = 2,
+             .expectedAbove = slicer::Polygon3D{},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: base of polygon exactly on zPosition",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .zPosition = 0,
+             .expectedAbove = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: base of polygon exactly on zPosition (negative Z)",
+             .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
+             .zPosition = -1,
+             .expectedAbove = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: top of polygon exactly on zPosition",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .zPosition = 1,
+             .expectedAbove = slicer::Polygon3D{},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: top of polygon exactly on zPosition (negative Z)",
+             .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
+             .zPosition = 0,
+             .expectedAbove = slicer::Polygon3D{},
+             .expectedBelow = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: square split by zPosition",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
+             .zPosition = .5,
+             .expectedAbove = {{{0, 0, .5}, {1, 0, .5}, {1, 0, 1}, {0, 0, 1}}},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, .5}, {0, 0, .5}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle pointing down",
+             .input = {{{0, 0, 1}, {.5, 0, 0}, {1, 0, 1}}},
+             .zPosition = .5,
+             .expectedAbove = {{{.25, 0, .5}, {.75, 0, .5}, {1, 0, 1}, {0, 0, 1}}},
+             .expectedBelow = {{{.25, 0, .5}, {.5, 0, 0}, {.75, 0, .5}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle pointing up",
+             .input = {{{0, 0, 0}, {1, 0, 0}, {.5, 0, 1}}},
+             .zPosition = .5,
+             .expectedAbove = {{{.25, 0, .5}, {.75, 0, .5}, {.5, 0, 1}}},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {.75, 0, 0.5}, {.25, 0, .5}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: negative right triangle pointing up",
+             .input = {{{-2, 0, -2}, {-1, 0, -2}, {-1, 0, -1}}},
+             .zPosition = -1.5,
+             .expectedAbove = {{{-1.5, 0, -1.5}, {-1, 0, -1.5}, {-1, 0, -1}}},
+             .expectedBelow = {{{-2, 0, -2}, {-1, 0, -2}, {-1, 0, -1.5}, {-1.5, 0, -1.5}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle pointing down with change in y-axis",
+             .input = {{{0, 0, 0}, {2, 2, 2}, {0, 0, 2}}},
+             .zPosition = 1,
+             .expectedAbove = {{{0, 0, 1}, {1, 1, 1}, {2, 2, 2}, {0, 0, 2}}},
+             .expectedBelow = {{{0, 0, 0}, {1, 1, 1}, {0, 0, 1}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: square with two vertices on the slice plane",
+             .input = {{{0, 0, 0}, {1, 0, -1}, {2, 0, 0}, {1, 0, 1}}},
+             .zPosition = 0,
+             .expectedAbove = {{{0, 0, 0}, {2, 0, 0}, {1, 0, 1}}},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, -1}, {2, 0, 0}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: hexagon with two vertices on the slice plane",
+             .input = {{{0, 0, 0}, {1, 0, -1}, {2, 0, -1}, {3, 0, 0}, {2, 0, 1}, {1, 0, 1}}},
+             .zPosition = 0,
+             .expectedAbove = {{{0, 0, 0}, {3, 0, 0}, {2, 0, 1}, {1, 0, 1}}},
+             .expectedBelow = {{{0, 0, 0}, {1, 0, -1}, {2, 0, -1}, {3, 0, 0}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle above slice plane with two vertices on the slice plane",
+             .input = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
+             .zPosition = 0,
+             .expectedAbove = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle above slice plane with one vertex on the slice plane",
+             .input = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
+             .zPosition = 0,
+             .expectedAbove = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
+             .expectedBelow = slicer::Polygon3D{}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle below slice plane with two vertices on the slice plane",
+             .input = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
+             .zPosition = 2,
+             .expectedAbove = slicer::Polygon3D{},
+             .expectedBelow = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}}
+         },
+         ClipUnitTest{
+             .description = "Clip: triangle below slice plane with one vertex on the slice plane",
+             .input = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
+             .zPosition = 2,
+             .expectedAbove = slicer::Polygon3D{},
+             .expectedBelow = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}}
+         }
+     );
 
-        INFO("Expected above: " + toString(testCase.expectedAbove));
-        INFO("actual above: " + toString(aboveRegion));
-        CHECK(compareIgnoringStart(testCase.expectedAbove, aboveRegion));
+     INFO(testCase.description);
+     {
+         for (const auto& input : getAllStartVertexCombinations(testCase.input)) {
+             INFO("Input: " + toString(input));
+             INFO("ZPosition: " + std::to_string(testCase.zPosition));
 
-        auto belowRegion = slicer::clip(input, testCase.zPosition, slicer::KeepRegion::Below);
-        INFO("Expected below: " + toString(testCase.expectedBelow));
-        INFO("actual below: " + toString(belowRegion));
-        CHECK(compareIgnoringStart(testCase.expectedBelow, belowRegion));
-    }
+             auto aboveRegion = slicer::clip(testCase.input, testCase.zPosition, slicer::KeepRegion::Above);
 
-    // Testing winding invariance:
-    {
-        auto reversedInput = reverseWinding(testCase.input);
+             INFO("Expected above: " + toString(testCase.expectedAbove));
+             INFO("actual above: " + toString(aboveRegion));
+             CHECK(compareIgnoringStart(testCase.expectedAbove, aboveRegion));
 
-        INFO("Input (reverse winding): " + toString(reversedInput));
-        INFO("ZPosition: " + std::to_string(testCase.zPosition));
+             auto belowRegion = slicer::clip(input, testCase.zPosition, slicer::KeepRegion::Below);
 
-        auto aboveRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Above);
+             INFO("Expected below: " + toString(testCase.expectedBelow));
+             INFO("actual below: " + toString(belowRegion));
+             CHECK(compareIgnoringStart(testCase.expectedBelow, belowRegion));
+         }
+     }
 
-        auto reverseExpectedAbove = reverseWinding(testCase.expectedAbove);
-        INFO("Expected reversed above: " + toString(reverseExpectedAbove));
-        INFO("actual reversed above: " + toString(aboveRegion));
-        CHECK(compareIgnoringStart(reverseExpectedAbove, aboveRegion));
+     // Testing winding invariance:
+     {
+         auto reversedInput = reverseWinding(testCase.input);
+         for (const auto& input : getAllStartVertexCombinations(reversedInput)) {
+             INFO("Input (reverse winding): " + toString(reversedInput));
+             INFO("ZPosition: " + std::to_string(testCase.zPosition));
 
-        auto belowRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Below);
+             auto aboveRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Above);
 
-        auto reversedExpectedBelow = reverseWinding(testCase.expectedBelow);
-        INFO("Expected reversed below: " + toString(reversedExpectedBelow));
-        INFO("actual reversed below: " + toString(belowRegion));
-        CHECK(compareIgnoringStart(reversedExpectedBelow, belowRegion));
-    }
+             auto reverseExpectedAbove = reverseWinding(testCase.expectedAbove);
+             INFO("Expected reversed above: " + toString(reverseExpectedAbove));
+             INFO("actual reversed above: " + toString(aboveRegion));
+             CHECK(compareIgnoringStart(reverseExpectedAbove, aboveRegion));
+
+             auto belowRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Below);
+
+             auto reversedExpectedBelow = reverseWinding(testCase.expectedBelow);
+             INFO("Expected reversed below: " + toString(reversedExpectedBelow));
+             INFO("actual reversed below: " + toString(belowRegion));
+             CHECK(compareIgnoringStart(reversedExpectedBelow, belowRegion));
+         }
+     }
 }
