@@ -3,6 +3,6 @@
 #include "slicer/stl.hpp"
 
 TEST_CASE("Load .stl file") {
-    auto mesh = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
-    REQUIRE(mesh.triangles.size() > 0);
+    const auto triangles = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
+    CHECK_FALSE(triangles.empty());
 }

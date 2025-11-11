@@ -105,4 +105,30 @@ struct Plane {
     Vec3 normal;
 };
 
+class Span {
+public:
+    Span(float v0, float v1) :
+        v0(std::min(v0, v1)),
+        v1(std::max(v0, v1)) {}
+
+    [[nodiscard]] bool operator==(const Span& other) const {
+        return v0 == other.v0 && v1 == other.v1;
+    }
+
+    [[nodiscard]] bool isEmpty() const {
+        return v0 == v1;
+    }
+
+    [[nodiscard]] float lower() const {
+        return v0;
+    }
+    [[nodiscard]] float upper() const {
+        return v1;
+    }
+
+private:
+    float v0;
+    float v1;
+};
+
 }

@@ -42,10 +42,19 @@ struct BBox3D {
         max.y = std::max(max.y, vertex.y);
         max.z = std::max(max.z, vertex.z);
     }
+
+    void extend(const BBox3D& other) {
+        this->extend(other.min);
+        this->extend(other.max);
+    }
 };
 
 [[nodiscard]] BBox2D getAABB(const Polygon2D& polygon);
 
 [[nodiscard]] BBox3D getAABB(const Polygon3D& polygon);
+
+[[nodiscartd]] BBox2D getAABB(const Triangle2D& triangle);
+
+[[nodiscartd]] BBox3D getAABB(const Triangle3D& triangle);
 
 }

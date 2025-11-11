@@ -2,7 +2,7 @@
 
 #include <ranges>
 
-#include "slicer/bvh.hpp"
+#include "bvh.hpp"
 
 TEST_CASE("Views") {
     auto vec = std::vector{1, 2, 3, 4, 5};

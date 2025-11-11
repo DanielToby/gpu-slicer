@@ -9,7 +9,7 @@ namespace slicer {
 
 void writeSVG(
     const BBox2D& dimensions,
-    const std::vector<Triangle2D>& triangles,
+    const std::vector<Polygon2D>& polygons,
     const std::string& path);
 
 }

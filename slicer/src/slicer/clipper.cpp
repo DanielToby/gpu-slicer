@@ -1,7 +1,5 @@
 #include "slicer/clipper.hpp"
 
-#include "mesh.hpp"
-
 namespace slicer {
 
 namespace {

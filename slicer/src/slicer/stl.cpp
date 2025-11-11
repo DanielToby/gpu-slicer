@@ -20,12 +20,12 @@ namespace {
 
 namespace slicer {
 
-Mesh loadStl(const std::string& fileName) noexcept(false) {
-    Mesh result;
+std::vector<Triangle3D> loadStl(const std::string& fileName) noexcept(false) {
+    std::vector<Triangle3D> result;
 
-    auto mesh = stl_reader::StlMesh(fileName);
+    const auto mesh = stl_reader::StlMesh(fileName);
     for (auto triangleIndex = std::size_t{0}; triangleIndex < mesh.num_tris(); ++triangleIndex) {
-        result.triangles.push_back(Triangle3D{
+        result.push_back(Triangle3D{
             getNormal(mesh, triangleIndex),
             getCorner(mesh, triangleIndex, 0),
             getCorner(mesh, triangleIndex, 1),
