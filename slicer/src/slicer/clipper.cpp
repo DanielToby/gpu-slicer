@@ -6,95 +6,65 @@ namespace slicer {
 
 namespace {
 
-[[nodiscard]] std::size_t getFirstIndexAboveYPosition(const std::vector<Vec3>& vertices, float zPosition) {
-    if (vertices.empty()) {
-        throw std::invalid_argument("Empty vertices.");
+//! Starting at or crossing the zPosition from outside the keepRegion is considered entering.
+[[nodiscard]] bool entersRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+    switch (keepRegion) {
+    case KeepRegion::Above:
+        return (p0.z <= zPosition && zPosition < p1.z);
+    case KeepRegion::Below:
+        return (p0.z >= zPosition && zPosition > p1.z);
     }
+    throw std::invalid_argument("Invalid keep region");
+}
+
+//! Crossing or arriving at the zPosition from inside the keepRegion is considered exiting.
+[[nodiscard]] bool exitsRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+    switch (keepRegion) {
+    case KeepRegion::Above:
+        return (p0.z > zPosition && zPosition >= p1.z);
+    case KeepRegion::Below:
+        return (p0.z < zPosition && zPosition <= p1.z);
+    }
+    throw std::invalid_argument("Invalid keep region");
+}
+
+[[nodiscard]] bool inRegion(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+    switch (keepRegion) {
+    case KeepRegion::Above:
+        return (p0.z > zPosition && p1.z > zPosition);
+    case KeepRegion::Below:
+        return (p0.z < zPosition && p1.z < zPosition);
+    }
+    throw std::invalid_argument("Invalid keep region");
+}
+
+[[nodiscard]] std::optional<std::size_t> getFirstIndexWhere(const std::vector<Vec3>& vertices, const std::function<bool(const Vec3&)>& predicate) {
     for (std::size_t i = 0; i < vertices.size(); ++i) {
-        if (vertices[i].z >= zPosition) {
+        if (std::invoke(predicate, vertices[i])) {
             return i;
         }
     }
-    throw std::runtime_error("No vertex above zPosition.");
+    return std::nullopt;
+}
+
+//! This checks for strictly above / below but NOT equal to ZPosition, so we can guarantee that there is complete geometry in keepRegion.
+[[nodiscard]] std::optional<std::size_t> getStartingIndex(const std::vector<Vec3>& vertices, float zPosition, KeepRegion keepRegion) {
+    switch (keepRegion) {
+        case KeepRegion::Above:
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z > zPosition; });
+        case KeepRegion::Below:
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z < zPosition; });
+    }
+    throw std::invalid_argument("Invalid keep region");
 }
 
 [[nodiscard]] float dot(const Vec3& a, const Vec3& b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
-[[nodiscard]] Polygon3D clipAbove(const Polygon3D& polygon, float zPosition) {
-    if (!polygon.isValid()) {
-        throw std::invalid_argument("Invalid polygon.");
-    }
-
-    auto bbox = getAABB(polygon);
-    if (bbox.min.z >= zPosition) {
-        // Entire polygon lies above clipping plane.
-        return polygon;
-    }
-    if (bbox.max.z <= zPosition) {
-        // Entire polygon lies below clipping plane.
-        return Polygon3D{};
-    }
-
-    auto result = Polygon3D{};
-
-    // We start at the first vertex above yPosition.
-    auto offset = getFirstIndexAboveYPosition(polygon.vertices, zPosition);
-    result.vertices.push_back(polygon.vertices.at(offset));
-
-    bool isAbove = true;
-    for (auto i = 0; i < polygon.vertices.size(); ++i) {
-        auto i0 = (i + offset) % polygon.vertices.size();
-        auto i1 = (i + 1 + offset) % polygon.vertices.size();
-
-        auto p0 = polygon.vertices.at(i0);
-        auto p1 = polygon.vertices.at(i1);
-
-        if (p1.z >= zPosition) {
-            if (isAbove) {
-                result.vertices.push_back(p1);
-            } else {
-                // Crossing yPosition! Find intersection:
-                if (auto intersection = detail::intersect(p0, p1, zPosition)) {
-                    result.vertices.push_back(*intersection);
-                } else {
-                    throw std::runtime_error("Invalid intersection.");
-                }
-
-                // Is above should only become true one time. This vertex was the initial vertex.
-                if (p1 != result.vertices.at(0)) {
-                    throw std::runtime_error("Polygon is not convex.");
-                }
-            }
-        } else {
-            if (isAbove) {
-                //! Crossing yPosition! Find intersection:
-                if (auto intersection = detail::intersect(p0, p1, zPosition)) {
-                    result.vertices.push_back(*intersection);
-                } else {
-                    throw std::runtime_error("Invalid intersection.");
-                }
-            }
-            isAbove = false;
-        }
-    }
-
-    return result;
 }
 
-}
-
-std::optional<Vec3> detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
-    // Special case: line along zPosition:
-    if (p0.z == zPosition && p1.z == zPosition) {
-        return p0;
-    }
-
-    if (!(p0.z <= zPosition && p1.z > zPosition) && !(p1.z <= zPosition && p0.z > zPosition)) {
-        return std::nullopt;
-    }
-
+Vec3 detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
     // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
     const auto line = Line3D::fromPoints(p0, p1);
 
@@ -107,12 +77,33 @@ std::optional<Vec3> detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
 }
 
 Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion) {
-    switch (keepRegion) {
-    case KeepRegion::Above:
-        return clipAbove(polygon, zPosition);
-    default:
-        throw std::invalid_argument("Not implemented.");
+    if (!polygon.isValid()) {
+        throw std::invalid_argument("Invalid polygon.");
     }
+
+    auto result = Polygon3D{};
+
+    auto offset = getStartingIndex(polygon.vertices, zPosition, keepRegion);
+    if (!offset) {
+        // No geometry in region.
+        return {};
+    }
+
+    for (auto i = 0; i < polygon.vertices.size(); ++i) {
+        const auto p0 = polygon.vertices[(i + *offset) % polygon.vertices.size()];
+        const auto p1 = polygon.vertices[(i + *offset + 1) % polygon.vertices.size()];
+
+        if (entersRegion(p0, p1, zPosition, keepRegion)) {
+            result.vertices.push_back(detail::intersect(p0, p1, zPosition));
+        } else if (exitsRegion(p0, p1, zPosition, keepRegion)) {
+            result.vertices.push_back(p0);
+            result.vertices.push_back(detail::intersect(p0, p1, zPosition));
+        } else if (inRegion(p0, p1, zPosition, keepRegion)) {
+            result.vertices.push_back(p0);
+        }
+    }
+
+    return result;
 }
 
 }

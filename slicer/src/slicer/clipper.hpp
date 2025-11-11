@@ -9,7 +9,7 @@ namespace slicer {
 namespace detail {
 
 //! Returns the point at which the line described by p0 and p1 intersects yPosition.
-[[nodiscard]] std::optional<Vec3> intersect(Vec3 p0, Vec3 p1, float zPosition);
+[[nodiscard]] Vec3 intersect(Vec3 p0, Vec3 p1, float zPosition);
 
 }
 
