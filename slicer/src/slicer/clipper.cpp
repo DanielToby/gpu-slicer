@@ -60,6 +60,12 @@ namespace {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
+[[nodsicard]] bool allPointsOnZPosition(const std::vector<Vec3>& vertices, float zPosition) {
+    return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
+        return v.z == zPosition;
+    });
+}
+
 }
 
 Vec3 detail::intersect(Vec3 p0, Vec3 p1, float zPosition) {
@@ -79,8 +85,12 @@ Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion)
         throw std::invalid_argument("Invalid polygon.");
     }
 
-    auto result = Polygon3D{};
+    // Special case: All points on zPosition:
+    if (allPointsOnZPosition(polygon.vertices, zPosition) && keepRegion == KeepRegion::Above) {
+        return polygon;
+    }
 
+    auto result = Polygon3D{};
     auto offset = getStartingIndex(polygon.vertices, zPosition, keepRegion);
     if (!offset) {
         // No geometry in region.

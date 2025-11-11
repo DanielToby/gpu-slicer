@@ -4,8 +4,6 @@
 
 #include <ranges>
 
-#include <iostream>
-
 namespace slicer {
 
 namespace {
@@ -43,12 +41,6 @@ std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness_mm) {
             mesh.query(sliceHeight) |
             std::views::transform([&sliceHeight](const auto& triangle) {
                 const auto withClippedBottom = clip(toPolygon3D(triangle), sliceHeight.lower(), KeepRegion::Above);
-
-                if (withClippedBottom.isEmpty()) {
-                    // TODO: Fix!
-                    return Polygon2D{};
-                }
-
                 const auto withClippedTop = clip(withClippedBottom, sliceHeight.upper(), KeepRegion::Below);
                 return toPolygon2D(withClippedTop);
             });

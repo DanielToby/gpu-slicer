@@ -5,11 +5,15 @@ namespace slicer {
 namespace {
 
 [[nodiscard]] bool allPointsBelow(const Triangle3D& triangle, const Span& zSpan) {
-    return triangle.v0.z < zSpan.lower() && triangle.v1.z < zSpan.lower() && triangle.v2.z < zSpan.lower();
+    // Special case, we keep these.
+    if (triangle.v0.z == zSpan.lower() && triangle.v1.z == zSpan.lower() && triangle.v2.z == zSpan.lower()) {
+        return false;
+    }
+    return triangle.v0.z <= zSpan.lower() && triangle.v1.z <= zSpan.lower() && triangle.v2.z <= zSpan.lower();
 }
 
 [[nodiscard]] bool allPointsAbove(const Triangle3D& triangle, const Span& zSpan) {
-    return triangle.v0.z > zSpan.upper() && triangle.v1.z > zSpan.upper() && triangle.v2.z > zSpan.upper();
+    return triangle.v0.z >= zSpan.upper() && triangle.v1.z >= zSpan.upper() && triangle.v2.z >= zSpan.upper();
 }
 
 [[nodiscard]] bool intersects(const Triangle3D& triangle, const Span& zSpan) {
