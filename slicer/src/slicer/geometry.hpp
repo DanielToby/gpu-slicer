@@ -113,4 +113,6 @@ private:
     float v1;
 };
 
+Vec3 intersect(const Vec3& p0, const Vec3& p1, float zPosition);
+
 }

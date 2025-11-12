@@ -1,7 +1,5 @@
 #pragma once
 
-#include <optional>
-
 #include "slicer/geometry.hpp"
 
 namespace slicer {
@@ -10,9 +8,6 @@ namespace slicer {
 enum class KeepRegion { Above = 0, Below = 1 };
 
 namespace detail {
-
-//! Returns the point at which the line described by p0 and p1 intersects yPosition.
-[[nodiscard]] Vec3 intersect(const Vec3& p0, const Vec3& p1, float zPosition);
 
 //! Describes the "behavior" of the line from p0 to p1, with respect to some zPosition.
 enum class LineBehavior {

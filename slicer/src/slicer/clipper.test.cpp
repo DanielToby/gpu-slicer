@@ -79,49 +79,49 @@ struct ClipUnitTest {
 TEST_CASE("intersect: vertical line arriving at ZPosition") {
     auto p0 = slicer::Vec3{0, 0, 0};
     auto p1 = slicer::Vec3{0, 0, 1};
-    CHECK(slicer::detail::intersect(p0, p1, 1) == p1);
-    CHECK(slicer::detail::intersect(p1, p0, 0) == p0);
+    CHECK(slicer::intersect(p0, p1, 1) == p1);
+    CHECK(slicer::intersect(p1, p0, 0) == p0);
 }
 
 TEST_CASE("intersect: vertical line starting at ZPosition") {
     auto p0 = slicer::Vec3{0, 0, 0};
     auto p1 = slicer::Vec3{0, 0, 1};
-    CHECK(slicer::detail::intersect(p0, p1, 0) == p0);
-    CHECK(slicer::detail::intersect(p1, p0, 1) == p1);
+    CHECK(slicer::intersect(p0, p1, 0) == p0);
+    CHECK(slicer::intersect(p1, p0, 1) == p1);
 }
 
 TEST_CASE("intersect: vertical line crossing ZPosition") {
     auto p0 = slicer::Vec3{0, 0, 0};
     auto p1 = slicer::Vec3{0, 0, 1};
-    auto intersection = slicer::detail::intersect(p0, p1, 0.5);
+    auto intersection = slicer::intersect(p0, p1, 0.5);
     CHECK(intersection == slicer::Vec3{0, 0, .5});
 }
 
 TEST_CASE("intersect: diagonal line") {
     auto p0 = slicer::Vec3{0, 0, 0};
     auto p1 = slicer::Vec3{1, 1, 1};
-    auto intersection = slicer::detail::intersect(p0, p1, 0.5);
+    auto intersection = slicer::intersect(p0, p1, 0.5);
     CHECK(intersection == slicer::Vec3{.5, .5, .5});
 }
 
 TEST_CASE("intersect: negative slope diagonal line") {
     auto p0 = slicer::Vec3{1, 1, 1};
     auto p1 = slicer::Vec3{0, 0, 0};
-    auto intersection = slicer::detail::intersect(p0, p1, 0.5);
+    auto intersection = slicer::intersect(p0, p1, 0.5);
     CHECK(intersection == slicer::Vec3{.5, .5, .5});
 }
 
 TEST_CASE("intersect: diagonal line below 0") {
     auto p0 = slicer::Vec3{-1, -1, -1};
     auto p1 = slicer::Vec3{0, 0, 0};
-    auto intersection = slicer::detail::intersect(p0, p1, -0.5);
+    auto intersection = slicer::intersect(p0, p1, -0.5);
     CHECK(intersection == slicer::Vec3{-.5, -.5, -.5});
 }
 
 TEST_CASE("intersect: negative slope diagonal line below 0") {
     auto p0 = slicer::Vec3{0, 0, 0};
     auto p1 = slicer::Vec3{-1, -1, -1};
-    auto intersection = slicer::detail::intersect(p0, p1, -0.5);
+    auto intersection = slicer::intersect(p0, p1, -0.5);
     CHECK(intersection == slicer::Vec3{-.5, -.5, -.5});
 }
 

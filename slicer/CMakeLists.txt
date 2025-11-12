@@ -19,6 +19,7 @@ set(SOURCES
     src/slicer/bbox.hpp
     src/slicer/clipper.cpp
     src/slicer/clipper.hpp
+    src/slicer/geometry.cpp
     src/slicer/geometry.hpp
     src/slicer/slicer.cpp
     src/slicer/slicer.hpp
