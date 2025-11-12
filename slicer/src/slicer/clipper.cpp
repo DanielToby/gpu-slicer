@@ -6,6 +6,23 @@ namespace slicer {
 
 namespace {
 
+template <typename T>
+struct Line {
+    T p0;
+    T direction;
+
+    [[nodiscard]] static Line fromPoints(const T& p0, const T& p1) {
+        return {p0, p1 - p0};
+    }
+};
+
+using Line3D = Line<Vec3>;
+
+struct Plane {
+    Vec3 p0;
+    Vec3 normal;
+};
+
 [[nodiscard]] bool insideInclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:

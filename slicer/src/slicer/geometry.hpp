@@ -87,24 +87,6 @@ struct Triangle3D {
     Vec3 v2;
 };
 
-template <typename T>
-struct Line {
-    T p0;
-    T direction;
-
-    [[nodiscard]] static Line fromPoints(const T& p0, const T& p1) {
-        return {p0, p1 - p0};
-    }
-};
-
-using Line2D = Line<Vec2>;
-using Line3D = Line<Vec3>;
-
-struct Plane {
-    Vec3 p0;
-    Vec3 normal;
-};
-
 class Span {
 public:
     Span(float v0, float v1) :
