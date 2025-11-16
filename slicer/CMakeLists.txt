@@ -31,6 +31,7 @@ set(SOURCES
     src/slicer/stl.hpp
     src/slicer/svg.cpp
     src/slicer/svg.hpp
+    src/slicer/timing.hpp
     src/spatial_index/bvh.cpp
     src/spatial_index/bvh.hpp
     src/spatial_index/no_spatial_index.cpp
@@ -45,6 +46,7 @@ target_sources(slicer PUBLIC ${SOURCES})
 add_executable(slicer_tests
     src/slicer/bbox.test.cpp
     src/slicer/clipper.test.cpp
+    src/slicer/main.test.cpp
     src/slicer/slicer.test.cpp
     src/slicer/stl.test.cpp
     src/spatial_index/bvh.test.cpp
