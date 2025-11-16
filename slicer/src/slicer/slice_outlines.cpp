@@ -14,21 +14,8 @@ namespace {
     return p0.x * p1.y - p1.x * p0.y;
 }
 
-//! The area is defined as 1/2 * the sum of the determinants of the two vectors formed by each point (p0, p1) and the origin.
-//! Recall that the determinant corresponds to the area of the parallelogram formed by copying and translating the two vectors.
-//! Taking one half of that tells us the area of the triangle formed by those two vectors.
-//! If we imagine our outline as drawing a polygon around the origin, the sum of those triangle areas is the area of the polygon.
-//! Of course, the center of our polygon probably isn't the origin, but the math still works out...
-[[nodiscard]] float calculatePolygonArea(const SliceOutline& outline) {
-    auto accumulatedArea = 0.f;
-    for (const auto& segment : getSegments(outline)) {
-        accumulatedArea += getDeterminant(segment.v0, segment.v1);
-    }
-    return .5f * accumulatedArea;
-}
-
 //! Sorts outlines in ascending order by AABB size.
-[[nodiscard]] std::vector<SliceOutlineWithRelativeWinding> sort(std::vector<SliceOutlineWithRelativeWinding>&& outlines) {
+[[nodiscard]] std::vector<SliceOutlineWithWinding> sort(std::vector<SliceOutlineWithWinding>&& outlines) {
     auto result = std::move(outlines);
     std::ranges::sort(outlines, [](const auto& a, const auto& b) {
         return getAABB(a.outline) < getAABB(b.outline);
@@ -93,16 +80,28 @@ std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacenc
     return result;
 }
 
-std::vector<SliceOutlineWithRelativeWinding> identifyWindings(const std::vector<SliceOutline>& outlines) {
-    std::vector<SliceOutlineWithRelativeWinding> result;
+float SliceOutlineWithWinding::calculateArea(const SliceOutline& outline) {
+    // The area is defined as 1/2 * the sum of the determinants of the two vectors formed by each point (p0, p1) and the origin.
+    // Recall that the determinant corresponds to the area of the parallelogram formed by copying and translating the two vectors.
+    // Taking one half of that tells us the area of the triangle formed by those two vectors.
+    // If we imagine our outline as drawing a polygon around the origin, the sum of those triangle areas is the area of the polygon.
+    // The signedness of each triangle's area allows this to work even if the origin isn't in the polygon at all; outside areas are subtracted.
+    auto accumulatedArea = 0.f;
+    for (const auto& segment : getSegments(outline)) {
+        accumulatedArea += getDeterminant(segment.v0, segment.v1);
+    }
+    return .5f * accumulatedArea;
+}
+
+std::vector<SliceOutlineWithWinding> identifyWindings(const std::vector<SliceOutline>& outlines) {
+    std::vector<SliceOutlineWithWinding> result;
     for (const auto& outline : outlines) {
-        const auto area = calculatePolygonArea(outline);
-        result.push_back({outline, (area < 0) ? RelativeWinding::Negative : RelativeWinding::Positive});
+        result.emplace_back(outline);
     }
     return result;
 }
 
-bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWithRelativeWinding> sortedOutlines) {
+bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines) {
     if (!m_index || isInside(sortedOutlines[i].outline, sortedOutlines[*m_index].outline)) {
         for (auto& child : m_children) {
             if (child.insert(i, sortedOutlines)) {
@@ -115,31 +114,33 @@ bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWit
     return false;
 }
 
-void writePolygon(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutlineWithRelativeWinding> sourceOutlines, std::vector<Polygon2D>& destination, EnforceWinding) {
+void writePolygon(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutlineWithWinding> sourceOutlines, std::vector<Polygon2D>& destination) {
     if (!sourceNode.index()) {
         throw std::runtime_error("Don't call on root.");
     }
-    auto sourceOutline = sourceOutlines[*sourceNode.index()];
-    // TODO: enforce winding.
-    auto newPolygonIt = destination.insert(destination.end(), Polygon2D{sourceOutline.outline});
+    auto outline = sourceOutlines[*sourceNode.index()];
+    outline.setWinding(Winding::CCW);
+
+    auto newPolygonIt = destination.insert(destination.end(), Polygon2D{outline.outline});
     for (const auto& child : sourceNode.children()) {
         writeHole(child, sourceOutlines, destination, *newPolygonIt);
     }
 }
 
-void writeHole(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutlineWithRelativeWinding> sourceOutlines, std::vector<Polygon2D>& destinationRoot, Polygon2D& destinationParent, EnforceWinding) {
+void writeHole(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutlineWithWinding> sourceOutlines, std::vector<Polygon2D>& destinationRoot, Polygon2D& destinationParent) {
     if (!sourceNode.index()) {
         throw std::runtime_error("Don't call on root.");
     }
-    auto sourceOutline = sourceOutlines[*sourceNode.index()];
-    // TODO: enforce winding.
-    destinationParent.holes.push_back({sourceOutline.outline});
+    auto outline = sourceOutlines[*sourceNode.index()];
+    outline.setWinding(Winding::CW);
+
+    destinationParent.holes.push_back({outline.outline});
     for (const auto& child : sourceNode.children()) {
         writePolygon(child, sourceOutlines, destinationRoot);
     }
 }
 
-OutlineHierarchy::OutlineHierarchy(std::vector<SliceOutlineWithRelativeWinding>&& outlines) :
+OutlineHierarchy::OutlineHierarchy(std::vector<SliceOutlineWithWinding>&& outlines) :
     m_sortedOutlines(sort(std::move(outlines))) {
     for (auto i = 0; i < m_sortedOutlines.size(); ++i) {
         if (!m_hierarchy.insert(i, m_sortedOutlines)) {

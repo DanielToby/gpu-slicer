@@ -70,7 +70,7 @@ TEST_CASE("identifyOutlineWindings: positive outline area") {
     REQUIRE(result.size() == 1);
     const auto& outlineAndWinding = result[0];
     CHECK(outlineAndWinding.outline == positiveOutline);
-    CHECK(outlineAndWinding.relativeWinding == RelativeWinding::Positive);
+    CHECK(outlineAndWinding.getWinding() == Winding::CCW);
 }
 
 TEST_CASE("identifyOutlineWindings: negative outline area") {
@@ -81,5 +81,5 @@ TEST_CASE("identifyOutlineWindings: negative outline area") {
     REQUIRE(result.size() == 1);
     const auto& outlineAndWinding = result[0];
     CHECK(outlineAndWinding.outline == negativeOutline);
-    CHECK(outlineAndWinding.relativeWinding == RelativeWinding::Negative);
+    CHECK(outlineAndWinding.getWinding() == Winding::CW);
 }

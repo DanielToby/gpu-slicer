@@ -12,17 +12,34 @@ using SliceOutline = std::vector<Vec2>;
 //! Produces a collection of outlines by following adjacent points.
 [[nodiscard]] std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacencyList);
 
-//! The windings read from slice outlines are relative. We don't know whether they correspond to CCW or CW yet.
-enum class RelativeWinding { Negative = 0, Positive = 1 };
+//! The order of the vertices in the outline.
+enum class Winding { CCW = 0, CW = 1 };
 
-//! Inspects the sign of the outlines area to identify a relative winding.
-struct SliceOutlineWithRelativeWinding {
+//! Associates a calculated area .
+struct SliceOutlineWithWinding {
+    explicit SliceOutlineWithWinding(const SliceOutline& ol) : outline(ol), area(calculateArea(outline)) {}
+
     SliceOutline outline;
-    RelativeWinding relativeWinding = RelativeWinding::Negative;
+    float area;
+
+    [[nodiscard]] Winding getWinding() const {
+        return area > 0 ? Winding::CCW : Winding::CW;
+    }
+
+    void setWinding(const Winding& winding) {
+        if (this->getWinding() != winding) {
+            std::ranges::reverse(this->outline);
+            area *= -1;
+        }
+    }
+
+    //! Computes the sum of each triangle formed by the origin, point[i], and point[i+1].
+    //! The sign of that value is used to identify the winding of the outline.
+    static float calculateArea(const SliceOutline& outline);
 };
 
 //! Assigns a relative winding to each outline.
-[[nodiscard]] std::vector<SliceOutlineWithRelativeWinding> identifyWindings(const std::vector<SliceOutline>& outlines);
+[[nodiscard]] std::vector<SliceOutlineWithWinding> identifyWindings(const std::vector<SliceOutline>& outlines);
 
 //! After outlines are sorted ascending by AABB size, we don't change their position in the flat container.
 //! We use these indices to refer to them, and trust that the flat container lives at least as long as these.
@@ -32,7 +49,7 @@ public:
     explicit OutlineHierarchyNode(std::size_t index) : m_index(index) {}
 
     //! If the outline is inside this, inserts it into the smallest containing outline.
-    [[nodiscard]] bool insert(std::size_t i, std::span<const SliceOutlineWithRelativeWinding> sortedOutlines);
+    [[nodiscard]] bool insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines);
 
     //! Only the root node has nullopt index.
     [[nodiscard]] std::optional<std::size_t> index() const { return m_index; }
@@ -43,37 +60,29 @@ private:
     std::vector<OutlineHierarchyNode> m_children;
 };
 
-//! Determines whether outlines are added as new polygons, or holes within existing polygons.
-enum class WindingFlag {
-    Shell = 0, // CCW
-    Hole = 1   // Hole
-};
-
-enum class EnforceWinding : bool { no, yes };
-
 //! Writes the polygon using the geometry in sourceOutlines at the index from sourceNode.
+//! Enforces a counter-clockwise winding (shell).
 void writePolygon(
     const OutlineHierarchyNode& sourceNode,
-    std::span<const SliceOutlineWithRelativeWinding> sourceOutlines,
-    std::vector<Polygon2D>& destination,
-    EnforceWinding = EnforceWinding::yes);
+    std::span<const SliceOutlineWithWinding> sourceOutlines,
+    std::vector<Polygon2D>& destination);
 
 //! Writes the hole using the geometry in sourceOutlines at the index from sourceNode.
+//! Enforces a clockwise winding (hole).
 void writeHole(const OutlineHierarchyNode& sourceNode,
-               std::span<const SliceOutlineWithRelativeWinding> sourceOutlines,
+               std::span<const SliceOutlineWithWinding> sourceOutlines,
                std::vector<Polygon2D>& destinationRoot,
-               Polygon2D& destinationParent,
-               EnforceWinding = EnforceWinding::yes);
+               Polygon2D& destinationParent);
 
 //! Attaches the lifetime of the sorted outlines to the hierarchy built in the c'tor.
 class OutlineHierarchy {
 public:
-    explicit OutlineHierarchy(std::vector<SliceOutlineWithRelativeWinding>&& outlines);
+    explicit OutlineHierarchy(std::vector<SliceOutlineWithWinding>&& outlines);
 
     [[nodiscard]] std::vector<Polygon2D> getPolygons() const;
 
 private:
-    std::vector<SliceOutlineWithRelativeWinding> m_sortedOutlines;
+    std::vector<SliceOutlineWithWinding> m_sortedOutlines;
     OutlineHierarchyNode m_hierarchy;
 };
 
