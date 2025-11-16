@@ -1,52 +1,81 @@
 #include "slicer/slicer.hpp"
 
-#include "clipper.hpp"
+#include <chrono>
+#include <iostream>
+#include <string>
+#include <map>
 
-#include <ranges>
+#include "clipper.hpp"
 
 namespace slicer {
 
 namespace {
 
-[[nodiscard]] Polygon3D toPolygon3D(const Triangle3D& triangle) {
-    return {{triangle.v0, triangle.v1, triangle.v2},};
+using Clock = std::chrono::high_resolution_clock;
+using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
+using LabelToAccumulatedDuration = std::map<std::string, std::chrono::microseconds>;
+
+void timeAndStore(TimePoint& lastTimePoint, const std::string& label, LabelToAccumulatedDuration& durations) {
+    const auto now = Clock::now();
+    const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(Clock::now() - lastTimePoint);
+    lastTimePoint = now;
+    durations[label] += elapsed;
 }
 
-[[nodiscard]] Polygon2D toPolygon2D(const Polygon3D& polygon) {
-    auto vertices = polygon.vertices | std::views::transform(&toVec2);
-    return {{vertices.begin(), vertices.end()}};
+void logAverageTimings(const LabelToAccumulatedDuration& labelToAccumulatedDuration, std::size_t numSamples) {
+    for (const auto& [label, accumulatedDuration] : labelToAccumulatedDuration) {
+        std::cout << "[" << label << "] time: " << accumulatedDuration.count() / numSamples << " μs" << std::endl;
+    }
 }
 
 }
 
-std::vector<Span> getSliceHeights(const BBox3D& volume, float thickness_mm) {
-    std::vector<Span> result;
+std::vector<float> getSliceHeights(const BBox3D& volume, float thickness) {
+    std::vector<float> result;
     const auto bottom = volume.min.z;
 
     auto current = bottom;
-    do {
-        auto next = current + thickness_mm;
-        result.emplace_back(current, std::min(next, volume.max.z));
-        current = next;
-    } while (current < volume.max.z);
-
+    while (current < volume.max.z) {
+        result.emplace_back(current);
+        current += thickness;
+    }
     return result;
 }
 
-std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness_mm) {
+std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness) {
     std::vector<Slice> result;
 
-    for (const auto& sliceHeight : getSliceHeights(mesh.AABB(), thickness_mm)) {
-        auto slicePolygons =
-            mesh.query(sliceHeight) |
-            std::views::transform([&sliceHeight](const auto& triangle) {
-                const auto withClippedBottom = clip(toPolygon3D(triangle), sliceHeight.lower(), KeepRegion::Above);
-                const auto withClippedTop = clip(withClippedBottom, sliceHeight.upper(), KeepRegion::Below);
-                return toPolygon2D(withClippedTop);
-            });
+    // For timing each slicing operation at each slice height.
+    LabelToAccumulatedDuration accumulatedDurations;
 
-        result.push_back({{slicePolygons.begin(), slicePolygons.end()}, sliceHeight});
+    auto time = Clock::now();
+
+    for (const auto& sliceHeight : getSliceHeights(mesh.AABB(), thickness)) {
+        auto triangles = mesh.query(sliceHeight);
+        timeAndStore(time, "1: query spatial index", accumulatedDurations);
+
+        auto segments = intersect(triangles, sliceHeight);
+        timeAndStore(time, "2: intersect triangles", accumulatedDurations);
+
+        auto adjacencyList = getManifoldAdjacencyList(segments);
+        timeAndStore(time, "3: build adjacency list", accumulatedDurations);
+
+        auto outlines = getSliceOutlines(adjacencyList);
+        timeAndStore(time, "4: get slice outlines", accumulatedDurations);
+
+        auto relativeOutlines = identifyWindings(outlines);
+        timeAndStore(time, "5: indentify windings", accumulatedDurations);
+
+        auto outlineHierarchy = OutlineHierarchy{std::move(relativeOutlines)};
+        timeAndStore(time, "6: get outline hierarchy", accumulatedDurations);
+
+        auto polygons =  outlineHierarchy.getPolygons();
+        timeAndStore(time, "7: get polygons", accumulatedDurations);
+
+        result.push_back({{polygons.begin(), polygons.end()}, sliceHeight});
     }
+
+    logAverageTimings(accumulatedDurations, result.size());
 
     return result;
 }

@@ -116,12 +116,20 @@ Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion)
             result.vertices.push_back(p0);
             if (p0.z != zPosition) {
                 // Special case: p0 on Z -> p1 out is considered an exit. Don't double-count p0.
-                result.vertices.push_back(intersect(p0, p1, zPosition));
+                const auto intersection = intersect(Segment3D{p0, p1}, zPosition);
+                if (!intersection) {
+                    throw std::invalid_argument("Invalid intersection.");
+                }
+                result.vertices.push_back(*intersection);
             }
             break;
         }
         case LineBehavior::Enters: {
-            result.vertices.push_back(intersect(p0, p1, zPosition));
+            const auto intersection = intersect(Segment3D{p0, p1}, zPosition);
+            if (!intersection) {
+                throw std::invalid_argument("Invalid intersection.");
+            }
+            result.vertices.push_back(*intersection);
             break;
         }
         case LineBehavior::RemainsOut:

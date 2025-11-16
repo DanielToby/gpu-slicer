@@ -15,12 +15,16 @@ PUBLIC
 )
 
 set(SOURCES
+    src/slicer/adjacency_list.cpp
+    src/slicer/adjacency_list.hpp
     src/slicer/bbox.cpp
     src/slicer/bbox.hpp
     src/slicer/clipper.cpp
     src/slicer/clipper.hpp
     src/slicer/geometry.cpp
     src/slicer/geometry.hpp
+    src/slicer/slice_outlines.cpp
+    src/slicer/slice_outlines.hpp
     src/slicer/slicer.cpp
     src/slicer/slicer.hpp
     src/slicer/stl.cpp

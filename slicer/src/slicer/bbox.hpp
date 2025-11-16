@@ -23,6 +23,14 @@ struct BBox2D {
         max.x = std::max(max.x, vertex.x);
         max.y = std::max(max.y, vertex.y);
     }
+
+    [[nodiscard]] float area() const {
+        return (max.x - min.x) * (max.y - min.y);
+    }
+
+    [[nodiscard]] bool operator<(const BBox2D& other) const {
+        return this->area() < other.area();
+    }
 };
 
 struct BBox3D {
@@ -49,12 +57,16 @@ struct BBox3D {
     }
 };
 
+[[nodiscard]] BBox2D getAABB(std::span<const Vec2> vertices);
+
+[[nodiscard]] BBox3D getAABB(std::span<const Vec3> vertices);
+
 [[nodiscard]] BBox2D getAABB(const Polygon2D& polygon);
 
 [[nodiscard]] BBox3D getAABB(const Polygon3D& polygon);
 
-[[nodiscartd]] BBox2D getAABB(const Triangle2D& triangle);
+[[nodiscard]] BBox2D getAABB(const Triangle2D& triangle);
 
-[[nodiscartd]] BBox3D getAABB(const Triangle3D& triangle);
+[[nodiscard]] BBox3D getAABB(const Triangle3D& triangle);
 
 }

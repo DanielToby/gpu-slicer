@@ -2,20 +2,28 @@
 
 namespace slicer {
 
-BBox2D getAABB(const Polygon2D& polygon) {
+BBox2D getAABB(std::span<const Vec2> vertices) {
     auto result = BBox2D{};
-    for (const auto& vertex : polygon.vertices) {
+    for (const auto& vertex : vertices) {
         result.extend(vertex);
     }
     return result;
 }
 
-BBox3D getAABB(const Polygon3D& polygon) {
+BBox3D getAABB(std::span<const Vec3> vertices) {
     auto result = BBox3D{};
-    for (const auto& vertex : polygon.vertices) {
+    for (const auto& vertex : vertices) {
         result.extend(vertex);
     }
     return result;
+}
+
+BBox2D getAABB(const Polygon2D& polygon) {
+    return getAABB(polygon.vertices);
+}
+
+BBox3D getAABB(const Polygon3D& polygon) {
+    return getAABB(polygon.vertices);
 }
 
 BBox2D getAABB(const Triangle2D& triangle) {
