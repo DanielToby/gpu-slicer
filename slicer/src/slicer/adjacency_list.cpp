@@ -2,35 +2,42 @@
 
 namespace slicer {
 
-namespace {
+using AdjacencyList = std::unordered_map<Vec2, std::array<std::optional<Vec2>, 2>, Vec2Hash>;
 
-using AdjacencyList = std::unordered_map<Vec2, std::unordered_set<Vec2, Vec2Hash>, Vec2Hash>;
+void addOrThrowIfFull(std::array<std::optional<Vec2>, 2>& list, Vec2 value) {
+    if (!list[0]) {
+        list[0] = value;
+    } else if (!list[1]) {
+        list[1] = value;
+    } else {
+        throw std::runtime_error("Mesh is not manifold.");
+    }
+}
 
-[[nodiscard]] ManifoldAdjacencyList makeManifold(const AdjacencyList& adjacencyList) noexcept(false) {
-    ManifoldAdjacencyList result;
-    for (const auto& [v, neighbors] : adjacencyList) {
-        if (neighbors.size() != 2) {
+ManifoldAdjacencyList getManifoldOrThrow(const AdjacencyList& adjacencyList) {
+    auto result = ManifoldAdjacencyList{};
+    result.reserve(adjacencyList.size());
+
+    for (const auto& [vertex, adjacencies] : adjacencyList) {
+        if (adjacencies[0] && adjacencies[1]) {
+            result[vertex] = std::array{*adjacencies[0], *adjacencies[1]};
+        } else {
             throw std::runtime_error("Mesh is not manifold.");
         }
-
-        auto it = neighbors.begin();
-        const auto& a = *it++;
-        const auto& b = *it;
-
-        result[v] = {a, b};
     }
     return result;
 }
 
-}
-
-ManifoldAdjacencyList getManifoldAdjacencyList(std::span<const QuantizedLine2D> lines) {
+ManifoldAdjacencyList getManifoldAdjacencyList(const IntersectData& intersections) {
     AdjacencyList result;
-    for (const auto& line : lines) {
-        result[line.v0()].insert(line.v1());
-        result[line.v1()].insert(line.v0());
+    result.reserve(intersections.vertices.size());
+
+    for (const auto& edge : intersections.edges) {
+        addOrThrowIfFull(result[edge.v0.value()], edge.v1.value());
+        addOrThrowIfFull(result[edge.v1.value()], edge.v0.value());
     }
-    return makeManifold(result);
+
+    return getManifoldOrThrow(result);
 }
 
 }

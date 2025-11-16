@@ -18,19 +18,22 @@ This project only requires C++20 and CMake >=3.29 to run. The tests are under ta
 ### Results
 
 ```
+Num triangles: 225154
+Num slices: 96
+
 Slice Operations:
-[1: query spatial index] time: 1996μs
-[2: intersect triangles] time: 174μs
-[3: build adjacency list] time: 884μs
-[4: get slice outlines] time: 419μs
-[5: indentify windings] time: 42μs
-[6: get outline hierarchy] time: 77μs
-[7: get polygons] time: 12μs
+[1: query spatial index] time: 2097μs
+[2: intersect triangles] time: 439μs
+[3: build adjacency list] time: 451μs
+[4: get slice outlines] time: 435μs
+[5: indentify windings] time: 44μs
+[6: get outline hierarchy] time: 62μs
+[7: get polygons] time: 15μs
 
 Total Run:
 [build spatial index (none)] time: 1ms
-[load stl] time: 202ms
-[slice (no spatial index)] time: 346ms
+[load stl] time: 207ms
+[slice (no spatial index)] time: 340ms
 ```
 
 Without a spatial index, querying for triangles intersecting Z takes up most of the slicing time.

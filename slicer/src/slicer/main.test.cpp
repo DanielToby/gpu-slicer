@@ -13,6 +13,8 @@ TEST_CASE("Slice 3DBenchy") {
     const auto triangles = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
     slicer::timing::timeAndStore(time, "load stl", accumulatedDurations);
 
+    std::cout << "Num triangles: " << triangles.size() << std::endl;
+
     auto noSpatialIndex = slicer::NoSpatialIndex{};
     noSpatialIndex.build(triangles);
     slicer::timing::timeAndStore(time, "build spatial index (none)", accumulatedDurations);

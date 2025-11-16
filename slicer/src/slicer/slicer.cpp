@@ -24,14 +24,17 @@ std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness) {
 
     auto time = timing::Clock::now();
 
-    for (const auto& sliceHeight : getSliceHeights(mesh.AABB(), thickness)) {
+    const auto sliceHeights = getSliceHeights(mesh.AABB(), thickness);
+    std::cout << "Num slices: " << sliceHeights.size() << std::endl << std::endl;
+
+    for (const auto& sliceHeight : sliceHeights) {
         auto triangles = mesh.query(sliceHeight);
         timing::timeAndStore(time, "1: query spatial index", accumulatedDurations);
 
-        auto segments = intersect(triangles, sliceHeight);
+        auto intersectData = intersect(triangles, sliceHeight);
         timing::timeAndStore(time, "2: intersect triangles", accumulatedDurations);
 
-        auto adjacencyList = getManifoldAdjacencyList(segments);
+        auto adjacencyList = getManifoldAdjacencyList(intersectData);
         timing::timeAndStore(time, "3: build adjacency list", accumulatedDurations);
 
         auto outlines = getSliceOutlines(adjacencyList);

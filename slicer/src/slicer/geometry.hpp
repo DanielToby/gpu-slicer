@@ -3,6 +3,8 @@
 #include <ranges>
 #include <vector>
 
+#include <unordered_set>
+
 namespace slicer {
 
 struct Vec2 {
@@ -136,29 +138,42 @@ struct Plane {
     Vec3 normal;
 };
 
-//! Warning! This library performs quantization as soon as intersections are calculated.
-//! This ensures a snapping of values and correct comparison / hashing at later steps.
-//! It'd probably be more correct to perform quantization at every step, but this is just a demo.
-class QuantizedLine2D {
+//! Snaps point to a grid.
+class QuantizedPoint2D {
 public:
-    QuantizedLine2D(const Vec2& v0, const Vec2& v1) : m_v0(quantize(v0)), m_v1(quantize(v1)) {}
-
-    [[nodiscard]] Vec2 v0() const { return m_v0; }
-    [[nodiscard]] Vec2 v1() const { return m_v1; }
+    explicit QuantizedPoint2D(const Vec2& value) : m_value(quantize(value)) {}
+    [[nodiscard]] Vec2 value() const { return m_value; }
+    [[nodiscard]] bool operator==(const QuantizedPoint2D& other) const {
+        return m_value == other.m_value;
+    }
 
 private:
     [[nodiscard]] static Vec2 quantize(const Vec2& original);
 
-    Vec2 m_v0;
-    Vec2 m_v1;
+    Vec2 m_value;
 };
 
-//! Intersects the triangle with the plane described by zPosition. Returns a 2D line segment.
+struct QuantizedPoint2DHash {
+    std::size_t operator()(const QuantizedPoint2D& v) const noexcept;
+};
+
+struct QuantizedLine2D {
+    QuantizedPoint2D v0;
+    QuantizedPoint2D v1;
+};
+
+//! Intersects the triangle with the plane described by zPosition, and adds the results to data.
 //! this function's implementation describes the rules by which we keep intersections with triangles lying directly on the z-position.
 [[nodiscard]] std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosition);
 
-//! Returns all segments created by intersecting the provided triangles.
-[[nodiscard]] std::vector<QuantizedLine2D> intersect(std::span<const Triangle3D> triangles, float zPosition);
+//! Input added to by intersect. This reduces allocations by not returning std::vector.
+struct IntersectData {
+    std::unordered_set<QuantizedPoint2D, QuantizedPoint2DHash> vertices;
+    std::vector<QuantizedLine2D> edges;
+};
+
+//! Adds all segments created by intersecting the provided triangles to `data`.
+IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition);
 
 [[nodiscard]] bool intersects(const Segment3D& segment, float zPosition);
 

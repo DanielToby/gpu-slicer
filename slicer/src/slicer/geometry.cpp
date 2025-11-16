@@ -140,10 +140,14 @@ std::optional<Vec2> intersect(const Segment2D& segment, const Ray2D& ray) {
     return std::nullopt;
 }
 
-Vec2 QuantizedLine2D::quantize(const Vec2& original) {
+Vec2 QuantizedPoint2D::quantize(const Vec2& original) {
     return {
         std::round(original.x / EPSILON) * EPSILON,
         std::round(original.y / EPSILON) * EPSILON};
+}
+
+std::size_t QuantizedPoint2DHash::operator()(const QuantizedPoint2D& v) const noexcept {
+    return Vec2Hash{}(v.value());
 }
 
 std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosition) {
@@ -164,7 +168,7 @@ std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosi
     }
 
     const auto makeQuantized2D = [](const Vec3& a, const Vec3& b) {
-        return QuantizedLine2D{toVec2(a), toVec2(b)};
+        return QuantizedLine2D{QuantizedPoint2D{toVec2(a)}, QuantizedPoint2D{toVec2(b)}};
     };
 
     // Valid cases:
@@ -193,11 +197,13 @@ std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosi
     throw std::runtime_error("Unhandled triangle intersection case.");
 }
 
-std::vector<QuantizedLine2D> intersect(std::span<const Triangle3D> triangles, float zPosition) {
-    auto result = std::vector<QuantizedLine2D>{};
+IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition) {
+    IntersectData result;
     for (const auto& triangle : triangles) {
         if (auto intersection = intersect(triangle, zPosition)) {
-            result.emplace_back(*intersection);
+            result.vertices.insert(intersection->v0);
+            result.vertices.insert(intersection->v1);
+            result.edges.emplace_back(*intersection);
         }
     }
     return result;
