@@ -10,15 +10,19 @@ namespace slicer {
 
 namespace {
 
-//! The area is defined as 1/2 * the sum of the cross products of each edge (p0, p1).
-//! Recall that the determinant corresponds to the area of the parallelogram formed by drawing vectors to two points p0 and p1.
+[[nodiscard]] float getDeterminant(const Vec2& p0, const Vec2& p1) {
+    return p0.x * p1.y - p1.x * p0.y;
+}
+
+//! The area is defined as 1/2 * the sum of the determinants of the two vectors formed by each point (p0, p1) and the origin.
+//! Recall that the determinant corresponds to the area of the parallelogram formed by copying and translating the two vectors.
 //! Taking one half of that tells us the area of the triangle formed by those two vectors.
 //! If we imagine our outline as drawing a polygon around the origin, the sum of those triangle areas is the area of the polygon.
 //! Of course, the center of our polygon probably isn't the origin, but the math still works out...
 [[nodiscard]] float calculatePolygonArea(const SliceOutline& outline) {
     auto accumulatedArea = 0.f;
     for (const auto& segment : getSegments(outline)) {
-        accumulatedArea += Vec2::cross(segment.v0, segment.v1);
+        accumulatedArea += getDeterminant(segment.v0, segment.v1);
     }
     return .5f * accumulatedArea;
 }
