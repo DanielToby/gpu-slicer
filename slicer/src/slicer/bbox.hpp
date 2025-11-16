@@ -24,6 +24,15 @@ struct BBox2D {
         max.y = std::max(max.y, vertex.y);
     }
 
+    void extend(const BBox2D& other) {
+        this->extend(other.min);
+        this->extend(other.max);
+    }
+
+    [[nodiscard]] BBox2D operator*(float s) const {
+        return {this->min * s, this->max * s};
+    }
+
     [[nodiscard]] float area() const {
         return (max.x - min.x) * (max.y - min.y);
     }
@@ -56,6 +65,10 @@ struct BBox3D {
         this->extend(other.max);
     }
 };
+
+[[nodiscard]] inline BBox2D toBBox2D(const BBox3D& bbox) {
+    return {toVec2(bbox.min), toVec2(bbox.max) };
+}
 
 [[nodiscard]] BBox2D getAABB(std::span<const Vec2> vertices);
 

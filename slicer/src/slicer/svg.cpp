@@ -19,11 +19,14 @@ namespace {
 }
 
 void writeSVG(
-    const BBox2D& dimensions,
+    const BBox2D& bbox,
     const std::vector<Polygon2D>& polygons,
-    const std::string& path) {
-    const double width = dimensions.max.x - dimensions.min.x;
-    const double height = dimensions.max.y - dimensions.min.y;
+    const std::string& path,
+    float scaleFactor) {
+    auto scaledBBox = bbox * scaleFactor;
+
+    const double width = scaledBBox.max.x - scaledBBox.min.x;
+    const double height = scaledBBox.max.y - scaledBBox.min.y;
     std::ofstream out(path);
     out << "<svg xmlns=\"http://www.w3.org/2000/svg\" "
         << "width=\"" << width << "\" height=\"" << height << "\" "
@@ -31,13 +34,13 @@ void writeSVG(
 
     out << "<g stroke=\"black\" stroke-width=\"1\" fill=\"none\">\n";
 
-    auto tx = [&dimensions](float x) {
-        return x - dimensions.min.x;
+    auto tx = [&](float x) {
+        return (x * scaleFactor) - scaledBBox.min.x;
     };
 
     // Flip Y so positive Y is up in the SVG
-    auto ty = [&dimensions](float y) {
-        return (dimensions.max.y - y);
+    auto ty = [&](float y) {
+        return scaledBBox.max.y - (y * scaleFactor);
     };
 
     for (const auto& polygon : polygons) {

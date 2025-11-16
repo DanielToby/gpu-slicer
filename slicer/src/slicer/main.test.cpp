@@ -22,10 +22,9 @@ TEST_CASE("Slice 3DBenchy") {
 
     slicer::timing::logTimings("Total Run", accumulatedDurations);
 
-    auto bbox = noSpatialIndex.AABB();
-    auto dimensions = slicer::BBox2D{slicer::toVec2(bbox.min), slicer::toVec2(bbox.max)};
+    const auto dimensions = slicer::toBBox2D(noSpatialIndex.AABB());
     for (auto i = 0; i < slices.size(); i++) {
         auto path = "/Users/daniel.toby/Desktop/output/" + std::to_string(i) + ".svg";
-        slicer::writeSVG(dimensions, slices[i].polygons, path);
+        slicer::writeSVG(dimensions, slices[i].polygons, path, /* scaleFactor = */ 40);
     }
 }
