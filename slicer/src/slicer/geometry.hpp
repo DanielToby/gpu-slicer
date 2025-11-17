@@ -44,8 +44,23 @@ public:
         return std::accumulate(data.begin(), data.end(), 0.0f);
     }
 
+    [[nodiscard]] constexpr float product() const {
+        return std::accumulate(data.begin(), data.end(), 1.0f,
+            [](float a, float b) { return a * b; });
+    }
+
     [[nodiscard]] static constexpr float dot(const VecBase& a, const VecBase& b) {
         return (a * b).sum();
+    }
+
+    template <typename Op>
+    constexpr VecBase makeUnaryOp(Op op) const {
+        return makeUnaryOpImpl(op, std::make_index_sequence<N>{});
+    }
+
+    template <typename Op>
+    constexpr VecBase makeBinaryOp(const VecBase& o, Op op) const {
+        return makeBinaryOpImpl(o, op, std::make_index_sequence<N>{});
     }
 
 protected:
@@ -57,19 +72,9 @@ private:
         return VecBase{op(data[I])...};
     }
 
-    template <typename Op>
-    constexpr VecBase makeUnaryOp(Op op) const {
-        return makeUnaryOpImpl(op, std::make_index_sequence<N>{});
-    }
-
     template <typename Op, std::size_t... I>
     constexpr VecBase makeBinaryOpImpl(const VecBase& o, Op op, std::index_sequence<I...>) const {
         return VecBase{op(data[I], o.data[I])...};
-    }
-
-    template <typename Op>
-    constexpr VecBase makeBinaryOp(const VecBase& o, Op op) const {
-        return makeBinaryOpImpl(o, op, std::make_index_sequence<N>{});
     }
 };
 
@@ -77,6 +82,8 @@ template<std::size_t N>
 class Vec : public VecBase<N> {
 public:
     using VecBase<N>::VecBase;
+    using VecBase<N>::makeUnaryOp;
+    using VecBase<N>::makeBinaryOp;
 protected:
     using VecBase<N>::data;
 };
