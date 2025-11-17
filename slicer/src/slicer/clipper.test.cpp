@@ -2,21 +2,22 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "slicer/clipper.hpp"
+#include "slicer/intersect.hpp"
 
-#include <iostream>
+using namespace slicer;
 
 namespace {
 
 //! For testing winding invariance.
-[[nodiscard]] slicer::Polygon3D reverseWinding(const slicer::Polygon3D& polygon) {
+[[nodiscard]] Polygon3D reverseWinding(const Polygon3D& polygon) {
     auto vertices = polygon.vertices;
     std::ranges::reverse(vertices);
     return {{std::move(vertices)}};
 }
 
 //! For testing first-vertex invariance.
-[[nodiscard]] std::vector<slicer::Polygon3D> getAllStartVertexCombinations(const slicer::Polygon3D& polygon) {
-    std::vector<slicer::Polygon3D> result;
+[[nodiscard]] std::vector<Polygon3D> getAllStartVertexCombinations(const Polygon3D& polygon) {
+    std::vector<Polygon3D> result;
     for (auto i = 0; i < polygon.vertices.size(); ++i) {
         auto copy = polygon;
         std::ranges::rotate(copy.vertices, copy.vertices.begin() + i);
@@ -26,7 +27,7 @@ namespace {
 }
 
 //! Compares a and b, including their order, without considering the start position.
-bool compareIgnoringStart(const slicer::Polygon3D& a, const slicer::Polygon3D& b) {
+bool compareIgnoringStart(const Polygon3D& a, const Polygon3D& b) {
     if (a.vertices.size() != b.vertices.size()) {
         return false;
     }
@@ -40,14 +41,14 @@ bool compareIgnoringStart(const slicer::Polygon3D& a, const slicer::Polygon3D& b
         std::ranges::rotate(v, it);
     }
 
-    return (slicer::Polygon3D{v} == b);
+    return (Polygon3D{v} == b);
 }
 
-[[nodiscard, maybe_unused]] std::string toString(const slicer::Vec3& pt) {
-    return "{" + std::to_string(pt.x) + ", " + std::to_string(pt.y) + ", " + std::to_string(pt.z) + "}";
+[[nodiscard, maybe_unused]] std::string toString(const Vec3& pt) {
+    return "{" + std::to_string(pt.x()) + ", " + std::to_string(pt.y()) + ", " + std::to_string(pt.z()) + "}";
 }
 
-[[nodiscard, maybe_unused]] std::string toString(const slicer::Polygon3D& polygon) {
+[[nodiscard, maybe_unused]] std::string toString(const Polygon3D& polygon) {
     auto result = std::string{"["};
     for (const auto& pt : polygon.vertices) {
         result += toString(pt) + ", ";
@@ -58,76 +59,25 @@ bool compareIgnoringStart(const slicer::Polygon3D& a, const slicer::Polygon3D& b
 
 struct LineBehaviorUnitTest {
     std::string description;
-    slicer::Vec3 p0;
-    slicer::Vec3 p1;
+    Vec3 p0;
+    Vec3 p1;
     float zPosition;
-    slicer::KeepRegion keepRegion;
-    slicer::detail::LineBehavior expectedBehavior;
+    KeepRegion keepRegion;
+    detail::LineBehavior expectedBehavior;
 };
 
 struct ClipUnitTest {
     std::string description;
-    slicer::Polygon3D input;
+    Polygon3D input;
     float zPosition;
-    slicer::Polygon3D expectedAbove;
-    slicer::Polygon3D expectedBelow;
+    Polygon3D expectedAbove;
+    Polygon3D expectedBelow;
 };
 
 }
 
-
-TEST_CASE("intersect: vertical line arriving at ZPosition") {
-    auto p0 = slicer::Vec3{0, 0, 0};
-    auto p1 = slicer::Vec3{0, 0, 1};
-    CHECK(slicer::intersect(slicer::Segment3D{p0, p1}, 1) == p1);
-    CHECK(slicer::intersect(slicer::Segment3D{p1, p0}, 0) == p0);
-}
-
-TEST_CASE("intersect: vertical line starting at ZPosition") {
-    auto p0 = slicer::Vec3{0, 0, 0};
-    auto p1 = slicer::Vec3{0, 0, 1};
-    CHECK(slicer::intersect(slicer::Segment3D{p0, p1}, 0) == p0);
-    CHECK(slicer::intersect(slicer::Segment3D{p1, p0}, 1) == p1);
-}
-
-TEST_CASE("intersect: vertical line crossing ZPosition") {
-    auto p0 = slicer::Vec3{0, 0, 0};
-    auto p1 = slicer::Vec3{0, 0, 1};
-    auto intersection = slicer::intersect(slicer::Segment3D{p0, p1}, 0.5);
-    CHECK(intersection == slicer::Vec3{0, 0, .5});
-}
-
-TEST_CASE("intersect: diagonal line") {
-    auto p0 = slicer::Vec3{0, 0, 0};
-    auto p1 = slicer::Vec3{1, 1, 1};
-    auto intersection = slicer::intersect(slicer::Segment3D{p0, p1}, 0.5);
-    CHECK(intersection == slicer::Vec3{.5, .5, .5});
-}
-
-TEST_CASE("intersect: negative slope diagonal line") {
-    auto p0 = slicer::Vec3{1, 1, 1};
-    auto p1 = slicer::Vec3{0, 0, 0};
-    auto intersection = slicer::intersect(slicer::Segment3D{p0, p1}, 0.5);
-    CHECK(intersection == slicer::Vec3{.5, .5, .5});
-}
-
-TEST_CASE("intersect: diagonal line below 0") {
-    auto p0 = slicer::Vec3{-1, -1, -1};
-    auto p1 = slicer::Vec3{0, 0, 0};
-    auto intersection = slicer::intersect(slicer::Segment3D{p0, p1}, -0.5);
-    CHECK(intersection == slicer::Vec3{-.5, -.5, -.5});
-}
-
-TEST_CASE("intersect: negative slope diagonal line below 0") {
-    auto p0 = slicer::Vec3{0, 0, 0};
-    auto p1 = slicer::Vec3{-1, -1, -1};
-    auto intersection = slicer::intersect(slicer::Segment3D{p0, p1}, -0.5);
-    CHECK(intersection == slicer::Vec3{-.5, -.5, -.5});
-}
-
 TEST_CASE("lineBehavior") {
-    using slicer::KeepRegion;
-    using slicer::detail::LineBehavior;
+    using detail::LineBehavior;
 
     auto testCase = GENERATE(
         LineBehaviorUnitTest{
@@ -245,30 +195,34 @@ TEST_CASE("lineBehavior") {
     );
 
     INFO(testCase.description);
-    CHECK(slicer::detail::lineBehavior(testCase.p0, testCase.p1, testCase.zPosition, testCase.keepRegion) == testCase.expectedBehavior);
+    CHECK(detail::lineBehavior(
+              QuantizedPoint3D::fromPoint(testCase.p0),
+              QuantizedPoint3D::fromPoint(testCase.p1),
+              testCase.zPosition,
+              testCase.keepRegion) == testCase.expectedBehavior);
 }
 
- TEST_CASE("slicer::clip") {
+ TEST_CASE("clip") {
      auto testCase = GENERATE(
          ClipUnitTest{
              .description = "Clip: polygon entirely above zPosition",
              .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
              .zPosition = -1,
              .expectedAbove = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: polygon entirely above zPosition (negative Z)",
              .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
              .zPosition = -2,
              .expectedAbove = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: polygon entirely below zPosition",
              .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
              .zPosition = 2,
-             .expectedAbove = slicer::Polygon3D{},
+             .expectedAbove = Polygon3D{},
              .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}}
          },
          ClipUnitTest{
@@ -276,27 +230,27 @@ TEST_CASE("lineBehavior") {
              .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
              .zPosition = 0,
              .expectedAbove = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: base of polygon exactly on zPosition (negative Z)",
              .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
              .zPosition = -1,
              .expectedAbove = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: top of polygon exactly on zPosition",
              .input = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}},
              .zPosition = 1,
-             .expectedAbove = slicer::Polygon3D{},
+             .expectedAbove = Polygon3D{},
              .expectedBelow = {{{0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1}}}
          },
          ClipUnitTest{
              .description = "Clip: top of polygon exactly on zPosition (negative Z)",
              .input = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}},
              .zPosition = 0,
-             .expectedAbove = slicer::Polygon3D{},
+             .expectedAbove = Polygon3D{},
              .expectedBelow = {{{0, 0, -1}, {1, 0, -1}, {1, 0, 0}, {0, 0, 0}}}
          },
          ClipUnitTest{
@@ -353,27 +307,27 @@ TEST_CASE("lineBehavior") {
              .input = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
              .zPosition = 0,
              .expectedAbove = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: triangle above slice plane with one vertex on the slice plane",
              .input = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
              .zPosition = 0,
              .expectedAbove = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
-             .expectedBelow = slicer::Polygon3D{}
+             .expectedBelow = Polygon3D{}
          },
          ClipUnitTest{
              .description = "Clip: triangle below slice plane with two vertices on the slice plane",
              .input = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}},
              .zPosition = 2,
-             .expectedAbove = slicer::Polygon3D{},
+             .expectedAbove = Polygon3D{},
              .expectedBelow = {{{0, 0, 2}, {0, 0, 0}, {2, 0, 2}}}
          },
          ClipUnitTest{
              .description = "Clip: triangle below slice plane with one vertex on the slice plane",
              .input = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}},
              .zPosition = 2,
-             .expectedAbove = slicer::Polygon3D{},
+             .expectedAbove = Polygon3D{},
              .expectedBelow = {{{0, 0, 0}, {2, 0, 0}, {2, 0, 2}}}
          }
      );
@@ -384,13 +338,13 @@ TEST_CASE("lineBehavior") {
              INFO("Input: " + toString(input));
              INFO("ZPosition: " + std::to_string(testCase.zPosition));
 
-             auto aboveRegion = slicer::clip(testCase.input, testCase.zPosition, slicer::KeepRegion::Above);
+             auto aboveRegion = clip(testCase.input, testCase.zPosition, KeepRegion::Above);
 
              INFO("Expected above: " + toString(testCase.expectedAbove));
              INFO("actual above: " + toString(aboveRegion));
              CHECK(compareIgnoringStart(testCase.expectedAbove, aboveRegion));
 
-             auto belowRegion = slicer::clip(input, testCase.zPosition, slicer::KeepRegion::Below);
+             auto belowRegion = clip(input, testCase.zPosition, KeepRegion::Below);
 
              INFO("Expected below: " + toString(testCase.expectedBelow));
              INFO("actual below: " + toString(belowRegion));
@@ -405,14 +359,14 @@ TEST_CASE("lineBehavior") {
              INFO("Input (reverse winding): " + toString(reversedInput));
              INFO("ZPosition: " + std::to_string(testCase.zPosition));
 
-             auto aboveRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Above);
+             auto aboveRegion = clip(reversedInput, testCase.zPosition, KeepRegion::Above);
 
              auto reverseExpectedAbove = reverseWinding(testCase.expectedAbove);
              INFO("Expected reversed above: " + toString(reverseExpectedAbove));
              INFO("actual reversed above: " + toString(aboveRegion));
              CHECK(compareIgnoringStart(reverseExpectedAbove, aboveRegion));
 
-             auto belowRegion = slicer::clip(reversedInput, testCase.zPosition, slicer::KeepRegion::Below);
+             auto belowRegion = clip(reversedInput, testCase.zPosition, KeepRegion::Below);
 
              auto reversedExpectedBelow = reverseWinding(testCase.expectedBelow);
              INFO("Expected reversed below: " + toString(reversedExpectedBelow));

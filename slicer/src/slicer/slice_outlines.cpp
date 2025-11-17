@@ -11,7 +11,7 @@ namespace slicer {
 namespace {
 
 [[nodiscard]] float getDeterminant(const Vec2& p0, const Vec2& p1) {
-    return p0.x * p1.y - p1.x * p0.y;
+    return p0.x() * p1.y() - p1.x() * p0.y();
 }
 
 //! Sorts outlines in ascending order by AABB size.

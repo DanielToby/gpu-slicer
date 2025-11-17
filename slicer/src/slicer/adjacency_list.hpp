@@ -2,7 +2,7 @@
 
 #include <unordered_map>
 
-#include "slicer/geometry.hpp"
+#include "slicer/intersect.hpp"
 
 namespace slicer {
 

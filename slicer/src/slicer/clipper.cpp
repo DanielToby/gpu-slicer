@@ -4,22 +4,22 @@ namespace slicer {
 
 namespace {
 
-[[nodiscard]] bool insideInclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
+[[nodiscard]] bool insideInclusive(const QuantizedPoint3D& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return p.z >= zPosition;
+        return p.value().z() >= zPosition;
     case KeepRegion::Below:
-        return p.z <= zPosition;
+        return p.value().z() <= zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
 
-[[nodiscard]] bool insideExclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
+[[nodiscard]] bool insideExclusive(const QuantizedPoint3D& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return p.z > zPosition;
+        return p.value().z() > zPosition;
     case KeepRegion::Below:
-        return p.z < zPosition;
+        return p.value().z() < zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -37,9 +37,9 @@ namespace {
 [[nodiscard]] std::optional<std::size_t> getStartingIndex(const std::vector<Vec3>& vertices, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
         case KeepRegion::Above:
-            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z > zPosition; });
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z() > zPosition; });
         case KeepRegion::Below:
-            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z < zPosition; });
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z() < zPosition; });
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -48,17 +48,17 @@ namespace {
     switch (keepRegion) {
     case KeepRegion::Above:
         return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-            return v.z >= zPosition;
+            return v.z() >= zPosition;
         });
     case KeepRegion::Below:
         //! All points on ZPosition for KeepRegion::Below is considered out of bounds.
         if (std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-                return v.z == zPosition;
+                return v.z() == zPosition;
             })) {
             return false;
         }
         return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-            return v.z <= zPosition;
+            return v.z() <= zPosition;
         });
     }
     throw std::invalid_argument("Invalid keep region");
@@ -68,7 +68,7 @@ namespace {
 
 namespace detail {
 
-LineBehavior lineBehavior(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion) {
+LineBehavior lineBehavior(const QuantizedPoint3D& p0, const QuantizedPoint3D& p1, float zPosition, KeepRegion keepRegion) {
     if (insideInclusive(p0, zPosition, keepRegion) && insideInclusive(p1, zPosition, keepRegion)) {
         return LineBehavior::RemainsIn;
     }
@@ -103,33 +103,33 @@ Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion)
     }
 
     for (auto i = 0; i < polygon.vertices.size(); ++i) {
-        const auto p0 = polygon.vertices[(i + *offset) % polygon.vertices.size()];
-        const auto p1 = polygon.vertices[(i + *offset + 1) % polygon.vertices.size()];
+        const auto p0 = QuantizedPoint3D::fromPoint(polygon.vertices[(i + *offset) % polygon.vertices.size()]);
+        const auto p1 = QuantizedPoint3D::fromPoint(polygon.vertices[(i + *offset + 1) % polygon.vertices.size()]);
 
         using detail::LineBehavior;
         switch (detail::lineBehavior(p0, p1, zPosition, keepRegion)) {
         case LineBehavior::RemainsIn: {
-            result.vertices.push_back(p0);
+            result.vertices.push_back(p0.value());
             break;
         }
         case LineBehavior::Exits: {
-            result.vertices.push_back(p0);
-            if (p0.z != zPosition) {
+            result.vertices.push_back(p0.value());
+            if (p0.value().z() != zPosition) {
                 // Special case: p0 on Z -> p1 out is considered an exit. Don't double-count p0.
-                const auto intersection = intersect(Segment3D{p0, p1}, zPosition);
+                const auto intersection = intersect(QuantizedLine3D{p0, p1}, zPosition);
                 if (!intersection) {
                     throw std::invalid_argument("Invalid intersection.");
                 }
-                result.vertices.push_back(*intersection);
+                result.vertices.push_back(intersection->value());
             }
             break;
         }
         case LineBehavior::Enters: {
-            const auto intersection = intersect(Segment3D{p0, p1}, zPosition);
+            const auto intersection = intersect(QuantizedLine3D{p0, p1}, zPosition);
             if (!intersection) {
                 throw std::invalid_argument("Invalid intersection.");
             }
-            result.vertices.push_back(*intersection);
+            result.vertices.push_back(intersection->value());
             break;
         }
         case LineBehavior::RemainsOut:

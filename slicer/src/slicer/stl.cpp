@@ -6,7 +6,7 @@
 
 namespace {
 
-[[nodiscard]] slicer::Vec3 getNormal(const stl_reader::StlMesh<float, unsigned int>& mesh, std::size_t triangleIndex) {
+[[maybe_unused, nodiscard]] slicer::Vec3 getNormal(const stl_reader::StlMesh<float, unsigned int>& mesh, std::size_t triangleIndex) {
     const float* n = mesh.tri_normal(triangleIndex);
     return slicer::Vec3{n[0], n[1], n[2]};
 }
@@ -26,7 +26,6 @@ std::vector<Triangle3D> loadStl(const std::string& fileName) noexcept(false) {
     const auto mesh = stl_reader::StlMesh(fileName);
     for (auto triangleIndex = std::size_t{0}; triangleIndex < mesh.num_tris(); ++triangleIndex) {
         result.push_back(Triangle3D{
-            getNormal(mesh, triangleIndex),
             getCorner(mesh, triangleIndex, 0),
             getCorner(mesh, triangleIndex, 1),
             getCorner(mesh, triangleIndex, 2),

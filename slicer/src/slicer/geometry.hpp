@@ -1,38 +1,130 @@
 #pragma once
 
+#include <array>
+#include <numeric>
 #include <ranges>
 #include <vector>
 
-#include <unordered_set>
-
 namespace slicer {
 
-struct Vec2 {
-    float x;
-    float y;
+//! Epsilon is used for hashing and quantization of points.
+constexpr float EPSILON = 1e-6f;
 
-    [[nodiscard]] bool operator==(const Vec2& other) const {
-        return x == other.x && y == other.y;
+//! All members common to Vectors of N dimensions.
+template<std::size_t N>
+class VecBase {
+public:
+    VecBase() = default;
+
+    template <typename... Ts>
+    explicit VecBase(Ts&&... xs) :
+        data{{static_cast<float>(xs)...}} {
+        static_assert(sizeof...(Ts) == N);
     }
 
-    [[nodiscard]] constexpr Vec2 operator+(const Vec2& other) const {
-        return {x + other.x, y + other.y};
+    [[nodiscard]] bool operator==(const VecBase& other) const = default;
+
+    [[nodiscard]] constexpr VecBase operator+(const VecBase& other) const {
+        return makeBinaryOp(other, [](float a, float b) { return a + b; });
     }
 
-    [[nodiscard]] constexpr Vec2 operator-(const Vec2& other) const {
-        return {x - other.x, y - other.y};
+    [[nodiscard]] constexpr VecBase operator-(const VecBase& other) const {
+        return makeBinaryOp(other, [](float a, float b) { return a - b; });
     }
 
-    [[nodiscard]] constexpr Vec2 operator*(float scalar) const {
-        return {x * scalar, y * scalar};
+    [[nodiscard]] constexpr VecBase operator*(const VecBase& other) const {
+        return makeBinaryOp(other, [](float a, float b) { return a * b; });
     }
 
-    [[nodiscard]] static constexpr float dot(const Vec2& a, const Vec2& b) {
-        return a.x * b.x + a.y * b.y;
+    [[nodiscard]] constexpr VecBase operator*(float s) const {
+        return makeUnaryOp([&s](float a) { return a * s; });
     }
 
-    [[nodiscard]] static constexpr float cross(const Vec2& a, const Vec2& b) {
-        return a.x * b.x - a.y * b.y;
+    [[nodiscard]] constexpr float sum() const {
+        return std::accumulate(data.begin(), data.end(), 0.0f);
+    }
+
+    [[nodiscard]] static constexpr float dot(const VecBase& a, const VecBase& b) {
+        return (a * b).sum();
+    }
+
+protected:
+    std::array<float, N> data{};
+
+private:
+    template <typename Op, std::size_t... I>
+        constexpr VecBase makeUnaryOpImpl(Op op, std::index_sequence<I...>) const {
+        return VecBase{op(data[I])...};
+    }
+
+    template <typename Op>
+    constexpr VecBase makeUnaryOp(Op op) const {
+        return makeUnaryOpImpl(op, std::make_index_sequence<N>{});
+    }
+
+    template <typename Op, std::size_t... I>
+    constexpr VecBase makeBinaryOpImpl(const VecBase& o, Op op, std::index_sequence<I...>) const {
+        return VecBase{op(data[I], o.data[I])...};
+    }
+
+    template <typename Op>
+    constexpr VecBase makeBinaryOp(const VecBase& o, Op op) const {
+        return makeBinaryOpImpl(o, op, std::make_index_sequence<N>{});
+    }
+};
+
+template<std::size_t N>
+class Vec : public VecBase<N> {
+public:
+    using VecBase<N>::VecBase;
+protected:
+    using VecBase<N>::data;
+};
+
+//! Specializations on this type allow explicit valid conversions between vector types.
+template <typename From, typename To>
+struct VecConvert {};
+
+template <>
+class Vec<2> : public VecBase<2> {
+public:
+    Vec() = default;
+    Vec(float x, float y) : VecBase(x, y) {}
+    constexpr Vec(const VecBase& base) : VecBase(base) {}
+
+    [[nodiscard]] float x() const { return this->data[0]; }
+    [[nodiscard]] float y() const { return this->data[1]; }
+
+    template <typename To>
+    [[nodiscard]] To as() const {
+        return VecConvert<Vec<2>, To>::to(*this);
+    }
+};
+using Vec2 = Vec<2>;
+
+template <>
+class Vec<3> : public VecBase<3> {
+public:
+    Vec() = default;
+    Vec(float x, float y, float z) : VecBase(x, y, z) {}
+    constexpr Vec(const VecBase& base) : VecBase(base) {}
+
+    [[nodiscard]] float x() const { return this->data[0]; }
+    [[nodiscard]] float y() const { return this->data[1]; }
+    [[nodiscard]] float z() const { return this->data[2]; }
+
+    template <typename To>
+    [[nodiscard]] To as() const {
+        return VecConvert<Vec<3>, To>::to(*this);
+    }
+};
+using Vec3 = Vec<3>;
+
+//! This is the only supported vector conversion.
+template<>
+struct VecConvert<Vec3, Vec2> {
+    [[nodiscard]] static Vec2 to(const Vec3& v) {
+        return {v.x(), v.y()};
     }
 };
 
@@ -40,48 +132,18 @@ struct Vec2Hash {
     std::size_t operator()(const Vec2& v) const noexcept;
 };
 
-struct Vec3 {
-    float x;
-    float y;
-    float z;
-
-    [[nodiscard]] bool operator==(const Vec3& other) const {
-        return x == other.x && y == other.y && z == other.z;
-    }
-
-    [[nodiscard]] constexpr Vec3 operator+(const Vec3& other) const {
-        return {x + other.x, y + other.y, z + other.z};
-    }
-
-    [[nodiscard]] constexpr Vec3 operator-(const Vec3& other) const {
-        return {x - other.x, y - other.y, z - other.z};
-    }
-
-    [[nodiscard]] constexpr Vec3 operator*(float scalar) const {
-        return {x * scalar, y * scalar, z * scalar};
-    }
-
-    [[nodiscard]] static constexpr float dot(const Vec3& a, const Vec3& b) {
-        return a.x * b.x + a.y * b.y + a.z * b.z;
-    }
-};
-
-[[nodiscard]] inline Vec2 toVec2(const Vec3& vec3) {
-    return {vec3.x, vec3.y};
-}
-
-template <typename T>
+template <typename PointType>
 struct Segment {
-    T v0;
-    T v1;
+    PointType v0;
+    PointType v1;
 };
 
 using Segment2D = Segment<Vec2>;
 using Segment3D = Segment<Vec3>;
 
-template <typename T>
+template <typename PointType>
 struct Polygon {
-    std::vector<T> vertices;
+    std::vector<PointType> vertices;
     std::vector<Polygon> holes;
 
     template <typename Tx>
@@ -94,7 +156,7 @@ struct Polygon {
         return this->transform([&scalar](const auto& v) { return v * scalar; });
     }
 
-    [[nodiscard]] Polygon translate(const T& amount) const {
+    [[nodiscard]] Polygon translate(const PointType& amount) const {
         return this->transform([&amount](const auto& v) { return v + amount; });
     }
 
@@ -106,19 +168,15 @@ struct Polygon {
 using Polygon2D = Polygon<Vec2>;
 using Polygon3D = Polygon<Vec3>;
 
-struct Triangle2D {
-    Vec2 v0;
-    Vec2 v1;
-    Vec2 v2;
+template <typename PointType>
+struct Triangle {
+    PointType v0;
+    PointType v1;
+    PointType v2;
 };
 
-struct Triangle3D {
-    Vec3 normal;
-    Vec3 v0;
-    Vec3 v1;
-    Vec3 v2;
-};
-
+using Triangle2D = Triangle<Vec2>;
+using Triangle3D = Triangle<Vec3>;
 
 template <typename T>
 struct Ray {
@@ -137,48 +195,5 @@ struct Plane {
     Vec3 p0;
     Vec3 normal;
 };
-
-//! Snaps point to a grid.
-class QuantizedPoint2D {
-public:
-    explicit QuantizedPoint2D(const Vec2& value) : m_value(quantize(value)) {}
-    [[nodiscard]] Vec2 value() const { return m_value; }
-    [[nodiscard]] bool operator==(const QuantizedPoint2D& other) const {
-        return m_value == other.m_value;
-    }
-
-private:
-    [[nodiscard]] static Vec2 quantize(const Vec2& original);
-
-    Vec2 m_value;
-};
-
-struct QuantizedPoint2DHash {
-    std::size_t operator()(const QuantizedPoint2D& v) const noexcept;
-};
-
-struct QuantizedLine2D {
-    QuantizedPoint2D v0;
-    QuantizedPoint2D v1;
-};
-
-//! Intersects the triangle with the plane described by zPosition, and adds the results to data.
-//! this function's implementation describes the rules by which we keep intersections with triangles lying directly on the z-position.
-[[nodiscard]] std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosition);
-
-//! Input added to by intersect. This reduces allocations by not returning std::vector.
-struct IntersectData {
-    std::unordered_set<QuantizedPoint2D, QuantizedPoint2DHash> vertices;
-    std::vector<QuantizedLine2D> edges;
-};
-
-//! Adds all segments created by intersecting the provided triangles to `data`.
-IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition);
-
-[[nodiscard]] bool intersects(const Segment3D& segment, float zPosition);
-
-[[nodiscard]] std::optional<Vec3> intersect(const Segment3D& segment, float zPosition);
-
-[[nodiscard]] std::optional<Vec2> intersect(const Segment2D& segment, const Ray2D& line);
 
 }

@@ -23,6 +23,8 @@ set(SOURCES
     src/slicer/clipper.hpp
     src/slicer/geometry.cpp
     src/slicer/geometry.hpp
+    src/slicer/intersect.cpp
+    src/slicer/intersect.hpp
     src/slicer/slice_outlines.cpp
     src/slicer/slice_outlines.hpp
     src/slicer/slicer.cpp
@@ -46,6 +48,7 @@ target_sources(slicer PUBLIC ${SOURCES})
 add_executable(slicer_tests
     src/slicer/bbox.test.cpp
     src/slicer/clipper.test.cpp
+    src/slicer/intersect.test.cpp
     src/slicer/main.test.cpp
     src/slicer/slicer.test.cpp
     src/slicer/stl.test.cpp

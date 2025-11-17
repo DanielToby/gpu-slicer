@@ -28,12 +28,13 @@ namespace {
 [[nodiscard]] slicer::IntersectData mockIntersectData(const std::vector<std::array<slicer::Vec2, 2>>& edges) {
     slicer::IntersectData data;
     for (const auto& edge : edges) {
-        auto p0 = slicer::QuantizedPoint2D{edge[0]};
-        auto p1 = slicer::QuantizedPoint2D{edge[1]};
+        auto p0 = slicer::QuantizedPoint2D::fromPoint(edge[0]);
+        auto p1 = slicer::QuantizedPoint2D::fromPoint(edge[1]);
         data.vertices.insert(p0);
         data.vertices.insert(p1);
-        data.edges.emplace_back(slicer::QuantizedLine2D{p0, p1});
+        data.edges.insert(slicer::QuantizedLine2D{p0, p1});
     }
+    return data;
 }
 
 }
