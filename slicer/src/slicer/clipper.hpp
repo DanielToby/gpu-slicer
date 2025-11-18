@@ -17,7 +17,7 @@ enum class LineBehavior {
     Enters      // p1 is exclusive.
 };
 
-[[nodiscard]] LineBehavior lineBehavior(const QuantizedPoint3D& p0, const QuantizedPoint3D& p1, float zPosition, KeepRegion keepRegion);
+[[nodiscard]] LineBehavior lineBehavior(const Vec3& p0, const Vec3& p1, float zPosition, KeepRegion keepRegion);
 
 }
 

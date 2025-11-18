@@ -14,6 +14,23 @@ namespace {
     return p0.x() * p1.y() - p1.x() * p0.y();
 }
 
+std::optional<Vec2> intersect(const Segment2D& line, const Ray2D& ray) {
+    const auto s = line.v1 - line.v0;
+    const auto rxs = getDeterminant(ray.direction, s);
+    if (rxs == 0) {
+        return std::nullopt;
+    }
+
+    const auto c = line.v0 - ray.p0;
+    const auto t = getDeterminant(c, s) / rxs;
+    const auto u = getDeterminant(c, ray.direction) / rxs;
+
+    if (0 <= t && 0 <= u && u <= 1) {
+        return {line.v0 + (line.v1 - line.v0) * u};
+    }
+    return std::nullopt;
+}
+
 //! Sorts outlines in ascending order by AABB size.
 [[nodiscard]] std::vector<SliceOutlineWithWinding> sort(std::vector<SliceOutlineWithWinding>&& outlines) {
     auto result = std::move(outlines);

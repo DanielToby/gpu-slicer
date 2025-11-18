@@ -196,8 +196,8 @@ TEST_CASE("lineBehavior") {
 
     INFO(testCase.description);
     CHECK(detail::lineBehavior(
-              QuantizedPoint3D::fromPoint(testCase.p0),
-              QuantizedPoint3D::fromPoint(testCase.p1),
+              testCase.p0,
+              testCase.p1,
               testCase.zPosition,
               testCase.keepRegion) == testCase.expectedBehavior);
 }

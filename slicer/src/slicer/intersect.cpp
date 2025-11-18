@@ -6,7 +6,7 @@ namespace {
 
 //! This makes describing intersection edge cases easier .
 struct ClassifiedTriangle {
-    std::array<QuantizedPoint3D, 3> points;
+    std::array<Vec3, 3> points;
 
     std::array<std::size_t, 3> below{};
     std::array<std::size_t, 3> on{};
@@ -16,17 +16,17 @@ struct ClassifiedTriangle {
     std::size_t onCount = 0;
     std::size_t aboveCount = 0;
 
-    [[nodiscard]] QuantizedPoint3D getPointBelowZ(std::size_t i) const { return points[below[i]]; }
-    [[nodiscard]] QuantizedPoint3D getPointOnZ(std::size_t i) const { return points[on[i]]; }
-    [[nodiscard]] QuantizedPoint3D getPointAboveZ(std::size_t i) const { return points[above[i]]; }
+    [[nodiscard]] Vec3 getPointBelowZ(std::size_t i) const { return points[below[i]]; }
+    [[nodiscard]] Vec3 getPointOnZ(std::size_t i) const { return points[on[i]]; }
+    [[nodiscard]] Vec3 getPointAboveZ(std::size_t i) const { return points[above[i]]; }
 };
 
 ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     ClassifiedTriangle result{
-        {QuantizedPoint3D::fromPoint(triangle.v0), QuantizedPoint3D::fromPoint(triangle.v1), QuantizedPoint3D::fromPoint(triangle.v2)},
+        {triangle.v0, triangle.v1, triangle.v2},
     };
     for (std::size_t i = 0; i < 3; ++i) {
-        const float pz = result.points[i].value().z();
+        const float pz = result.points[i].z();
 
         if (pz < z) {
             result.below[result.belowCount++] = i;
@@ -40,28 +40,19 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     return result;
 }
 
-[[nodiscard]] QuantizedPoint3D getIntersectionOrThrow(const QuantizedPoint3D& lower, const QuantizedPoint3D& upper, float zPosition) {
-    auto result = intersect(QuantizedLine3D{lower, upper}, zPosition);
+[[nodiscard]] Vec3 getIntersectionOrThrow(const Vec3& lower, const Vec3& upper, float zPosition) {
+    auto result = intersect(Segment3D{lower, upper}, zPosition);
     if (!result) {
         throw std::runtime_error("Bad call to intersect.");
     }
     return *result;
 }
 
-[[nodiscard]] float getDeterminant(const Vec2& p0, const Vec2& p1) {
-    return p0.x() * p1.y() - p1.x() * p0.y();
 }
 
-}
-
-bool intersects(const Segment3D& edge, float zPosition)  {
-    return (edge.v0.z() < zPosition && edge.v1.z() > zPosition)
-    || (edge.v0.z() > zPosition && edge.v1.z() < zPosition);
-}
-
-std::optional<QuantizedPoint3D> intersect(const QuantizedLine3D& line, float zPosition) {
+std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
     // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
-    const auto ray = Ray3D::fromPoints(line.v0.value(), line.v1.value());
+    const auto ray = Ray3D::fromPoints(segment.v0, segment.v1);
 
     // For any point X: dot((P0 - X), N) = 0, where P0 is zPosition at the origin, and N (normal) is the Z-axis.
     const auto plane = Plane{{0, 0, zPosition}, {0, 0, 1}};
@@ -74,51 +65,12 @@ std::optional<QuantizedPoint3D> intersect(const QuantizedLine3D& line, float zPo
 
     const auto t = Vec3::dot((plane.p0 - ray.p0), plane.normal) / d;
     if (0 <= t && t <= 1) {
-        return QuantizedPoint3D::fromPoint(Vec3{ray.p0 + ray.direction * t});
-    }
-
-    return std::nullopt;
-}
-
-std::optional<Vec2> intersect(const Segment2D& line, const Ray2D& ray) {
-    const auto s = line.v1 - line.v0;
-    const auto rxs = getDeterminant(ray.direction, s);
-    if (rxs == 0) {
-        return std::nullopt;
-    }
-
-    const auto c = line.v0 - ray.p0;
-    const auto t = getDeterminant(c, s) / rxs;
-    const auto u = getDeterminant(c, ray.direction) / rxs;
-
-    if (0 <= t && 0 <= u && u <= 1) {
-        return {line.v0 + (line.v1 - line.v0) * u};
+        return {ray.p0 + ray.direction * t};
     }
     return std::nullopt;
 }
 
-Vec2 quantize(const Vec2& in) {
-    return {
-        std::round(in.x() / EPSILON) * EPSILON,
-        std::round(in.y() / EPSILON) * EPSILON};
-}
-
-Vec3 quantize(const Vec3& in) {
-    return {
-        std::round(in.x() / EPSILON) * EPSILON,
-        std::round(in.y() / EPSILON) * EPSILON,
-        std::round(in.z() / EPSILON) * EPSILON};
-}
-
-std::size_t QuantizedPoint2DHash::operator()(const QuantizedPoint2D& v) const noexcept {
-    return Vec2Hash{}(v.value());
-}
-
-std::size_t QuantizedLine2DHash::operator()(const QuantizedLine2D& v) const noexcept {
-    return -1;
-}
-
-std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosition) {
+std::optional<Segment2D> intersect(const Triangle3D& triangle, float zPosition) {
     auto classified = classify(triangle, zPosition);
 
     // Empty cases:
@@ -135,8 +87,8 @@ std::optional<QuantizedLine2D> intersect(const Triangle3D& triangle, float zPosi
         return std::nullopt;
     }
 
-    const auto makeLine = [](const QuantizedPoint3D& a, const QuantizedPoint3D& b) {
-        return QuantizedLine2D{a.as<Vec2>(), b.as<Vec2>()};
+    const auto makeLine = [](const Vec3& a, const Vec3& b) {
+        return Segment2D{a.as<Vec2>(), b.as<Vec2>()};
     };
 
     // Valid cases:
@@ -171,6 +123,7 @@ IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition) 
         if (auto intersection = intersect(triangle, zPosition)) {
             result.vertices.insert(intersection->v0);
             result.vertices.insert(intersection->v1);
+
             result.edges.insert(*intersection);
         }
     }

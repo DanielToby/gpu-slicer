@@ -7,9 +7,6 @@
 
 namespace slicer {
 
-//! Epsilon is used for hashing and quantization of points.
-constexpr float EPSILON = 1e-6f;
-
 //! All members common to Vectors of N dimensions.
 template<std::size_t N>
 class VecBase {
@@ -143,10 +140,18 @@ template <typename PointType>
 struct Segment {
     PointType v0;
     PointType v1;
+
+    [[nodiscard]] bool operator==(const Segment& other) const {
+        return v0 == other.v0 && v1 == other.v1;
+    }
 };
 
 using Segment2D = Segment<Vec2>;
 using Segment3D = Segment<Vec3>;
+
+struct BidirectionalSegment2DHash {
+    std::size_t operator()(const Segment2D& v) const noexcept;
+};
 
 template <typename PointType>
 struct Polygon {
