@@ -46,10 +46,12 @@ target_sources(slicer PUBLIC ${SOURCES})
 # Tests
 
 add_executable(slicer_tests
+    src/slicer/adjacency_list.test.cpp
     src/slicer/bbox.test.cpp
     src/slicer/clipper.test.cpp
     src/slicer/intersect.test.cpp
     src/slicer/main.test.cpp
+    src/slicer/slice_outlines.test.cpp
     src/slicer/slicer.test.cpp
     src/slicer/stl.test.cpp
     src/spatial_index/bvh.test.cpp

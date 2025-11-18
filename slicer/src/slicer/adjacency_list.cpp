@@ -2,9 +2,9 @@
 
 namespace slicer {
 
-using AdjacencyList = std::unordered_map<Vec2, std::array<std::optional<Vec2>, 2>, Vec2Hash>;
+using AdjacencyList = std::unordered_map<QuantizedVec2, std::array<std::optional<QuantizedVec2>, 2>, QuantizedVec2Hash>;
 
-void addOrThrowIfFull(std::array<std::optional<Vec2>, 2>& list, Vec2 value) {
+void addOrThrowIfFull(std::array<std::optional<QuantizedVec2>, 2>& list, QuantizedVec2 value) {
     if (!list[0]) {
         list[0] = value;
     } else if (!list[1]) {
@@ -33,8 +33,12 @@ ManifoldAdjacencyList getManifoldAdjacencyList(const IntersectData& intersection
     result.reserve(intersections.vertices.size());
 
     for (const auto& edge : intersections.edges) {
-        addOrThrowIfFull(result[edge.v0.value()], edge.v1.value());
-        addOrThrowIfFull(result[edge.v1.value()], edge.v0.value());
+        if (edge.v0 == edge.v1) {
+            throw std::runtime_error("Empty intersection.");
+        }
+
+        addOrThrowIfFull(result[edge.v0], edge.v1);
+        addOrThrowIfFull(result[edge.v1], edge.v0);
     }
 
     return getManifoldOrThrow(result);

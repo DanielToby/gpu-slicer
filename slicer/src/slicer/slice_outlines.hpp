@@ -17,10 +17,8 @@ enum class Winding { CCW = 0, CW = 1 };
 
 //! Associates a calculated area .
 struct SliceOutlineWithWinding {
-    explicit SliceOutlineWithWinding(const SliceOutline& ol) : outline(ol), area(calculateArea(outline)) {}
-
     SliceOutline outline;
-    float area;
+    double area;
 
     [[nodiscard]] Winding getWinding() const {
         return area > 0 ? Winding::CCW : Winding::CW;
@@ -32,10 +30,6 @@ struct SliceOutlineWithWinding {
             area *= -1;
         }
     }
-
-    //! Computes the sum of each triangle formed by the origin, point[i], and point[i+1].
-    //! The sign of that value is used to identify the winding of the outline.
-    static float calculateArea(const SliceOutline& outline);
 };
 
 //! Assigns a relative winding to each outline.

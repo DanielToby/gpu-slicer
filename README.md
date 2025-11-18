@@ -26,7 +26,7 @@ Slice Operations:
 [2: intersect triangles] time: 439μs
 [3: build adjacency list] time: 451μs
 [4: get slice outlines] time: 435μs
-[5: indentify windings] time: 44μs
+[5: identify windings] time: 44μs
 [6: get outline hierarchy] time: 62μs
 [7: get polygons] time: 15μs
 
@@ -102,7 +102,7 @@ std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness) {
         timing::timeAndStore(time, "4: get slice outlines", accumulatedDurations);
 
         auto relativeOutlines = identifyWindings(outlines);
-        timing::timeAndStore(time, "5: indentify windings", accumulatedDurations);
+        timing::timeAndStore(time, "5: identify windings", accumulatedDurations);
 
         auto outlineHierarchy = OutlineHierarchy{std::move(relativeOutlines)};
         timing::timeAndStore(time, "6: get outline hierarchy", accumulatedDurations);

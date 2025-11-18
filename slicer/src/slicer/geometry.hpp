@@ -96,6 +96,8 @@ public:
     Vec(float x, float y) : VecBase(x, y) {}
     constexpr Vec(const VecBase& base) : VecBase(base) {}
 
+    using ValueType = float;
+
     [[nodiscard]] float x() const { return this->data[0]; }
     [[nodiscard]] float y() const { return this->data[1]; }
 
@@ -112,6 +114,8 @@ public:
     Vec() = default;
     Vec(float x, float y, float z) : VecBase(x, y, z) {}
     constexpr Vec(const VecBase& base) : VecBase(base) {}
+
+    using ValueType = float;
 
     [[nodiscard]] float x() const { return this->data[0]; }
     [[nodiscard]] float y() const { return this->data[1]; }
@@ -132,10 +136,6 @@ struct VecConvert<Vec3, Vec2> {
     }
 };
 
-struct Vec2Hash {
-    std::size_t operator()(const Vec2& v) const noexcept;
-};
-
 template <typename PointType>
 struct Segment {
     PointType v0;
@@ -148,10 +148,6 @@ struct Segment {
 
 using Segment2D = Segment<Vec2>;
 using Segment3D = Segment<Vec3>;
-
-struct BidirectionalSegment2DHash {
-    std::size_t operator()(const Segment2D& v) const noexcept;
-};
 
 template <typename PointType>
 struct Polygon {
@@ -207,5 +203,11 @@ struct Plane {
     Vec3 p0;
     Vec3 normal;
 };
+
+std::ostream& operator<<(std::ostream& os, const Vec2& v);
+std::ostream& operator<<(std::ostream& os, const Vec3& v);
+std::ostream& operator<<(std::ostream& os, const Segment2D& v);
+std::ostream& operator<<(std::ostream& os, const Segment3D& v);
+std::ostream& operator<<(std::ostream& os, const Triangle3D& v);
 
 }

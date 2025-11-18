@@ -14,6 +14,19 @@ namespace {
     return p0.x() * p1.y() - p1.x() * p0.y();
 }
 
+double calculateArea(const SliceOutline& outline) {
+    // The area is defined as 1/2 * the sum of the determinants of the two vectors formed by each point (p0, p1) and the origin.
+    // Recall that the determinant corresponds to the area of the parallelogram formed by copying and translating the two vectors.
+    // Taking one half of that tells us the area of the triangle formed by those two vectors.
+    // If we imagine our outline as drawing a polygon around the origin, the sum of those triangle areas is the area of the polygon.
+    // The signedness of each triangle's area allows this to work even if the origin isn't in the polygon at all; outside areas are subtracted.
+    auto accumulatedArea = 0.;
+    for (const auto& segment : getSegments(outline)) {
+        accumulatedArea += getDeterminant(segment.v0, segment.v1);
+    }
+    return .5 * accumulatedArea;
+}
+
 std::optional<Vec2> intersect(const Segment2D& line, const Ray2D& ray) {
     const auto s = line.v1 - line.v0;
     const auto rxs = getDeterminant(ray.direction, s);
@@ -38,6 +51,11 @@ std::optional<Vec2> intersect(const Segment2D& line, const Ray2D& ray) {
         return getAABB(a.outline) < getAABB(b.outline);
     });
     return result;
+}
+
+//! De-quantizes the segment.
+[[nodiscard]] Segment2D dequantize(const QuantizedSegment2D& quantized) {
+    return {quantized.v0.toVec2(), quantized.v1.toVec2()};
 }
 
 //! Returns true if the point is inside the outline.
@@ -65,7 +83,7 @@ std::vector<Segment2D> getSegments(const SliceOutline& outline) {
     std::vector<Segment2D> result;
     for (auto i = 0; i < outline.size(); ++i) {
         const auto j = (i + 1) % outline.size();
-        result.push_back(Segment2D{outline[i], outline[j]});
+        result.push_back({outline[i], outline[j]});
     }
     return result;
 }
@@ -73,7 +91,7 @@ std::vector<Segment2D> getSegments(const SliceOutline& outline) {
 std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacencyList) {
     using ValueType = ManifoldAdjacencyList::value_type;
     auto vertices = adjacencyList | std::views::transform(&ValueType::first);
-    auto unvisited = std::unordered_set<Vec2, Vec2Hash>(vertices.begin(), vertices.end());
+    auto unvisited = std::unordered_set<QuantizedVec2, QuantizedVec2Hash>(vertices.begin(), vertices.end());
 
     std::vector<SliceOutline> result;
     while (!unvisited.empty()) {
@@ -81,9 +99,9 @@ std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacenc
 
         auto start = *unvisited.begin();
         auto current = start;
-        std::optional<Vec2> previous = std::nullopt;
+        std::optional<QuantizedVec2> previous = std::nullopt;
         do {
-            outline.emplace_back(current);
+            outline.emplace_back(current.toVec2());
             unvisited.erase(current);
 
             const auto& [neighborA, neighborB] = adjacencyList.at(current);
@@ -97,25 +115,11 @@ std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacenc
     return result;
 }
 
-float SliceOutlineWithWinding::calculateArea(const SliceOutline& outline) {
-    // The area is defined as 1/2 * the sum of the determinants of the two vectors formed by each point (p0, p1) and the origin.
-    // Recall that the determinant corresponds to the area of the parallelogram formed by copying and translating the two vectors.
-    // Taking one half of that tells us the area of the triangle formed by those two vectors.
-    // If we imagine our outline as drawing a polygon around the origin, the sum of those triangle areas is the area of the polygon.
-    // The signedness of each triangle's area allows this to work even if the origin isn't in the polygon at all; outside areas are subtracted.
-    auto accumulatedArea = 0.f;
-    for (const auto& segment : getSegments(outline)) {
-        accumulatedArea += getDeterminant(segment.v0, segment.v1);
-    }
-    return .5f * accumulatedArea;
-}
-
 std::vector<SliceOutlineWithWinding> identifyWindings(const std::vector<SliceOutline>& outlines) {
-    std::vector<SliceOutlineWithWinding> result;
-    for (const auto& outline : outlines) {
-        result.emplace_back(outline);
-    }
-    return result;
+    auto result = outlines | std::views::transform([](const auto& outline) {
+        return SliceOutlineWithWinding{outline, calculateArea(outline)};
+    });
+    return {result.begin(), result.end()};
 }
 
 bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines) {
@@ -151,7 +155,7 @@ void writeHole(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutl
     auto outline = sourceOutlines[*sourceNode.index()];
     outline.setWinding(Winding::CW);
 
-    destinationParent.holes.push_back({outline.outline});
+    destinationParent.holes.push_back(Polygon2D{outline.outline});
     for (const auto& child : sourceNode.children()) {
         writePolygon(child, sourceOutlines, destinationRoot);
     }

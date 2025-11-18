@@ -41,7 +41,7 @@ std::vector<Slice> slice(const I_SpatialIndex& mesh, float thickness) {
         timing::timeAndStore(time, "4: get slice outlines", accumulatedDurations);
 
         auto relativeOutlines = identifyWindings(outlines);
-        timing::timeAndStore(time, "5: indentify windings", accumulatedDurations);
+        timing::timeAndStore(time, "5: identify windings", accumulatedDurations);
 
         auto outlineHierarchy = OutlineHierarchy{std::move(relativeOutlines)};
         timing::timeAndStore(time, "6: get outline hierarchy", accumulatedDurations);

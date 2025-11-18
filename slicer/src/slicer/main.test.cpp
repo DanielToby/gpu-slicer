@@ -19,7 +19,7 @@ TEST_CASE("Slice 3DBenchy") {
     noSpatialIndex.build(triangles);
     slicer::timing::timeAndStore(time, "build spatial index (none)", accumulatedDurations);
 
-    auto slices = slicer::slice(noSpatialIndex, .25);
+    auto slices = slicer::slice(noSpatialIndex, .5);
     slicer::timing::timeAndStore(time, "slice (no spatial index)", accumulatedDurations);
 
     slicer::timing::logTimings("Total Run", accumulatedDurations);
