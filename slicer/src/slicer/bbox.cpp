@@ -18,14 +18,6 @@ BBox3D getAABB(std::span<const Vec3> vertices) {
     return result;
 }
 
-QuantizedBBox2D getAABB(std::span<const QuantizedVec2> vertices) {
-    auto result = QuantizedBBox2D{};
-    for (const auto& vertex : vertices) {
-        result.extend(vertex);
-    }
-    return result;
-}
-
 BBox2D getAABB(const Polygon2D& polygon) {
     return getAABB(polygon.vertices);
 }

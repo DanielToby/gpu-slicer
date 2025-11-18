@@ -23,10 +23,10 @@ struct BBoxHelpers<Vec2> {
         return lhs.x() <= rhs.x() && lhs.y() <= rhs.y();
     }
     [[nodiscard]] static Vec2 combinedMin(const Vec2& lhs, const Vec2& rhs) {
-        return {std::min(lhs.x(), lhs.x()), std::min(rhs.y(), rhs.y())};
+        return {std::min(lhs.x(), rhs.x()), std::min(lhs.y(), rhs.y())};
     }
     [[nodiscard]] static Vec2 combinedMax(const Vec2& lhs, const Vec2& rhs) {
-        return {std::max(lhs.x(), lhs.x()), std::max(rhs.y(), rhs.y())};
+        return {std::max(lhs.x(), rhs.x()), std::max(lhs.y(), rhs.y())};
     }
     [[nodiscard]] static float area(const Vec2& a, const Vec2& b) {
         auto spans = a.makeBinaryOp(b, [](float min, float max) { return max - min; });
@@ -46,10 +46,10 @@ struct BBoxHelpers<QuantizedVec2> {
         return lhs.qx <= rhs.qx && lhs.qy <= rhs.qy;
     }
     [[nodiscard]] static QuantizedVec2 combinedMin(const QuantizedVec2& lhs, const QuantizedVec2& rhs) {
-        return {std::min(lhs.qx, lhs.qx), std::min(rhs.qy, rhs.qy)};
+        return {std::min(lhs.qx, rhs.qx), std::min(lhs.qy, rhs.qy)};
     }
     [[nodiscard]] static QuantizedVec2 combinedMax(const QuantizedVec2& lhs, const QuantizedVec2& rhs) {
-        return {std::max(lhs.qx, lhs.qx), std::max(rhs.qy, rhs.qy)};
+        return {std::max(lhs.qx, rhs.qx), std::max(lhs.qy, rhs.qy)};
     }
     [[nodiscard]] static int64_t area(const QuantizedVec2& a, const QuantizedVec2& b) {
         return (b.qx - a.qx) * (b.qy - a.qy);
@@ -68,10 +68,10 @@ struct BBoxHelpers<Vec3> {
         return lhs.x() <= rhs.x() && lhs.y() <= rhs.y() && lhs.z() <= rhs.z();
     }
     [[nodiscard]] static Vec3 combinedMin(const Vec3& lhs, const Vec3& rhs) {
-        return {std::min(lhs.x(), lhs.x()), std::min(rhs.y(), rhs.y()), std::min(lhs.z(), rhs.z())};
+        return {std::min(lhs.x(), rhs.x()), std::min(lhs.y(), rhs.y()), std::min(lhs.z(), rhs.z())};
     }
     [[nodiscard]] static Vec3 combinedMax(const Vec3& lhs, const Vec3& rhs) {
-        return {std::max(lhs.x(), lhs.x()), std::max(rhs.y(), rhs.y()), std::max(lhs.z(), rhs.z())};
+        return {std::max(lhs.x(), rhs.x()), std::max(lhs.y(), rhs.y()), std::max(lhs.z(), rhs.z())};
     }
     [[nodiscard]] static float area(const Vec3& a, const Vec3& b) {
         auto spans = a.makeBinaryOp(b, [](float min, float max) { return max - min; });
@@ -90,7 +90,7 @@ struct BBox {
 
     void extend(const PointType& vertex) {
         min = BBoxHelpers<PointType>::combinedMin(min, vertex);
-        max = BBoxHelpers<PointType>::combinedMax(min, vertex);
+        max = BBoxHelpers<PointType>::combinedMax(max, vertex);
     }
 
     void extend(const BBox& other) {
@@ -122,8 +122,6 @@ using QuantizedBBox2D = BBox<QuantizedVec2>;
 [[nodiscard]] BBox2D getAABB(std::span<const Vec2> vertices);
 
 [[nodiscard]] BBox3D getAABB(std::span<const Vec3> vertices);
-
-[[nodiscard]] QuantizedBBox2D getAABB(std::span<const QuantizedVec2> vertices);
 
 [[nodiscard]] BBox2D getAABB(const Polygon2D& polygon);
 
