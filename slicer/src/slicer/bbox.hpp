@@ -9,15 +9,18 @@
 namespace slicer {
 
 template <typename PointType>
-struct BBoxHelpers {};
+struct BBoxHelpers {
+};
 
 template <>
 struct BBoxHelpers<Vec2> {
+    using ValueType = Vec2::ValueType;
+
     [[nodiscard]] static Vec2 lowest() {
-        return {std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest()};
+        return {std::numeric_limits<ValueType>::lowest(), std::numeric_limits<ValueType>::lowest()};
     }
     [[nodiscard]] static Vec2 highest() {
-        return {std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
+        return {std::numeric_limits<ValueType>::max(), std::numeric_limits<ValueType>::max()};
     }
     [[nodiscard]] static bool lessEqual(const Vec2& lhs, const Vec2& rhs) {
         return lhs.x() <= rhs.x() && lhs.y() <= rhs.y();
@@ -28,19 +31,21 @@ struct BBoxHelpers<Vec2> {
     [[nodiscard]] static Vec2 combinedMax(const Vec2& lhs, const Vec2& rhs) {
         return {std::max(lhs.x(), rhs.x()), std::max(lhs.y(), rhs.y())};
     }
-    [[nodiscard]] static float area(const Vec2& a, const Vec2& b) {
-        auto spans = a.makeBinaryOp(b, [](float min, float max) { return max - min; });
+    [[nodiscard]] static ValueType area(const Vec2& a, const Vec2& b) {
+        auto spans = a.makeBinaryOp(b, [](ValueType min, ValueType max) { return max - min; });
         return spans.product();
     }
 };
 
 template <>
 struct BBoxHelpers<QuantizedVec2> {
+    using ValueType = QuantizedVec2::ValueType;
+
     [[nodiscard]] static QuantizedVec2 lowest() {
-        return {std::numeric_limits<int64_t>::lowest(), std::numeric_limits<int64_t>::lowest()};
+        return {std::numeric_limits<ValueType>::lowest(), std::numeric_limits<ValueType>::lowest()};
     }
     [[nodiscard]] static QuantizedVec2 highest() {
-        return {std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::max()};
+        return {std::numeric_limits<ValueType>::max(), std::numeric_limits<ValueType>::max()};
     }
     [[nodiscard]] static bool lessEqual(const QuantizedVec2& lhs, const QuantizedVec2& rhs) {
         return lhs.qx <= rhs.qx && lhs.qy <= rhs.qy;
@@ -51,13 +56,15 @@ struct BBoxHelpers<QuantizedVec2> {
     [[nodiscard]] static QuantizedVec2 combinedMax(const QuantizedVec2& lhs, const QuantizedVec2& rhs) {
         return {std::max(lhs.qx, rhs.qx), std::max(lhs.qy, rhs.qy)};
     }
-    [[nodiscard]] static int64_t area(const QuantizedVec2& a, const QuantizedVec2& b) {
+    [[nodiscard]] static ValueType area(const QuantizedVec2& a, const QuantizedVec2& b) {
         return (b.qx - a.qx) * (b.qy - a.qy);
     }
 };
 
 template <>
 struct BBoxHelpers<Vec3> {
+    using ValueType = Vec3::ValueType;
+
     [[nodiscard]] static Vec3 lowest() {
         return {std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest(), std::numeric_limits<float>::lowest()};
     }

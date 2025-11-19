@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_set>
+#include <set>
 
 #include "slicer/geometry.hpp"
 
@@ -13,22 +13,24 @@ struct QuantizedVec2 {
     ValueType qx;
     ValueType qy;
 
+    QuantizedVec2() = default;
+    QuantizedVec2(float x, float y);
+    QuantizedVec2(ValueType qx, ValueType qy) : qx(qx), qy(qy) {}
+
     [[nodiscard]] Vec2 toVec2() const noexcept;
 
     bool operator==(const QuantizedVec2& o) const noexcept {
         return qx == o.qx && qy == o.qy;
     }
 
-    [[nodiscard]] QuantizedVec2 operator-(const QuantizedVec2& other) const noexcept {
-        return {qx - other.qx, qy - other.qy};
-    }
-
-    [[nodiscard]] QuantizedVec2 operator+(const QuantizedVec2& other) const noexcept {
-        return {qx + other.qx, qy + other.qy};
-    }
-
-    [[nodiscard]] QuantizedVec2 operator*(ValueType s) const noexcept {
-        return {qx * s, qy * s};
+    [[nodiscard]] bool operator<(const QuantizedVec2& other) const noexcept {
+        if (qx < other.qx) {
+            return true;
+        }
+        if (qx == other.qx) {
+            return qy < other.qy;
+        }
+        return false;
     }
 };
 
@@ -37,25 +39,19 @@ struct QuantizedSegment2D {
     QuantizedVec2 v0;
     QuantizedVec2 v1;
 
-    bool operator==(const QuantizedSegment2D& other) const noexcept {
+    [[nodiscard]] bool operator==(const QuantizedSegment2D& other) const noexcept {
         return v0 == other.v0 && v1 == other.v1;
     }
-};
 
-struct QuantizedVec2Hash {
-    std::size_t operator()(const QuantizedVec2& v) const noexcept;
-};
-
-//! Swaps the order before hashing, if necessary.
-struct BidirectionalQuantizedSegment2DHash {
-    std::size_t operator()(const QuantizedSegment2D& s) const noexcept;
-};
-
-//! This type-safe guarantee of quantized, deduplicated points / edges helps ensure that our mesh is manifold and that
-//! our construction of the adjacency list goes smoothly.
-struct IntersectData {
-    std::unordered_set<QuantizedVec2, QuantizedVec2Hash> vertices;
-    std::unordered_set<QuantizedSegment2D, BidirectionalQuantizedSegment2DHash> edges;
+    [[nodiscard]] bool operator<(const QuantizedSegment2D& other) const noexcept {
+        if (v0 < other.v0) {
+            return true;
+        }
+        if (v0 == other.v0) {
+            return v1 < other.v1;
+        }
+        return false;
+    }
 };
 
 [[nodiscard]] std::optional<Vec3> intersect(const Segment3D& segment, float zPosition);
@@ -64,8 +60,8 @@ struct IntersectData {
 //! this function's implementation describes the rules by which we keep intersections with triangles lying directly on the z-position.
 [[nodiscard]] std::optional<Segment3D> intersect(const Triangle3D& triangle, float zPosition);
 
-//! Returns all data produced from intersecting triangles with zPosition.
-IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition);
+//! Returns all segments produced by intersecting triangles with zPosition.
+std::set<QuantizedSegment2D> intersect(std::span<const Triangle3D> triangles, float zPosition);
 
 std::ostream& operator<<(std::ostream& os, const QuantizedVec2& v);
 

@@ -6,10 +6,22 @@ namespace slicer {
 
 namespace {
 
-constexpr float EPSILON = 1e-6f;
+constexpr float EPSILON = 1e-4f;
+
+[[nodiscard]] std::int64_t quantize(float v) {
+    return llround(v / EPSILON);
+}
 
 [[nodiscard]] QuantizedVec2 quantize(const Vec2& v) {
-    return {llround(v.x() / EPSILON), llround(v.y() / EPSILON)};
+    return {quantize(v.x()), quantize(v.y())};
+}
+
+[[nodiscard]] float dequantize(std::int64_t v) {
+    return v * EPSILON;
+}
+
+[[nodiscard]] Vec2 dequantize(const QuantizedVec2& v) {
+    return {dequantize(v.qx), dequantize(v.qy)};
 }
 
 //! This makes describing intersection edge cases easier .
@@ -62,50 +74,11 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     return *result;
 }
 
-void addToHash(std::size_t& seed, int64_t value) noexcept {
-    // Mix 64-bit input into 64-bit hash state
-    std::size_t h = std::hash<int64_t>{}(value);
-    seed ^= h + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
 }
 
-[[nodiscard]] bool lexicographicalLess(const QuantizedVec2& a, const QuantizedVec2& b) {
-    if (a.qx < b.qx) {
-        return true;
-    }
-    if (a.qx == b.qx) {
-        return a.qy < b.qy;
-    }
-    return false;
-}
+QuantizedVec2::QuantizedVec2(float x, float y) : QuantizedVec2(quantize(x), quantize(y)) {}
 
-}
-
-Vec2 QuantizedVec2::toVec2() const noexcept {
-    return {qx * EPSILON, qy * EPSILON};
-}
-
-std::size_t QuantizedVec2Hash::operator()(const QuantizedVec2& v) const noexcept {
-    std::size_t h = 0x9e3779b97f4a7c15ull;
-    addToHash(h, v.qx);
-    addToHash(h, v.qy);
-    return h;
-}
-
-std::size_t BidirectionalQuantizedSegment2DHash::operator()(const QuantizedSegment2D& s) const noexcept {
-    std::size_t h = 0x9e3779b97f4a7c15ull;
-
-    auto v0 = s.v0;
-    auto v1 = s.v1;
-    if (!lexicographicalLess(v0, v1)) {
-        std::swap(v0, v1);
-    }
-
-    addToHash(h, v0.qx);
-    addToHash(h, v0.qy);
-    addToHash(h, v1.qx);
-    addToHash(h, v1.qy);
-    return h;
-}
+Vec2 QuantizedVec2::toVec2() const noexcept { return dequantize(*this); }
 
 std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
     // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.
@@ -170,15 +143,13 @@ std::optional<Segment3D> intersect(const Triangle3D& triangle, float zPosition) 
     throw std::runtime_error("Unhandled triangle intersection case.");
 }
 
-IntersectData intersect(std::span<const Triangle3D> triangles, float zPosition) {
-    IntersectData result;
+std::set<QuantizedSegment2D> intersect(std::span<const Triangle3D> triangles, float zPosition) {
+    std::set<QuantizedSegment2D> result;
     for (const auto& triangle : triangles) {
         if (auto intersection = intersect(triangle, zPosition)) {
             const auto qa = quantize(intersection->v0.as<Vec2>());
             const auto qb = quantize(intersection->v1.as<Vec2>());
-            result.vertices.insert(qa);
-            result.vertices.insert(qb);
-            result.edges.insert({qa, qb});
+            result.insert({qa, qb});
         }
     }
 

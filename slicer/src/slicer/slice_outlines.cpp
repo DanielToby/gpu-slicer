@@ -2,7 +2,7 @@
 
 #include <numeric>
 #include <ranges>
-#include <unordered_set>
+#include <set>
 
 #include "slicer/bbox.hpp"
 
@@ -91,7 +91,7 @@ std::vector<Segment2D> getSegments(const SliceOutline& outline) {
 std::vector<SliceOutline> getSliceOutlines(const ManifoldAdjacencyList& adjacencyList) {
     using ValueType = ManifoldAdjacencyList::value_type;
     auto vertices = adjacencyList | std::views::transform(&ValueType::first);
-    auto unvisited = std::unordered_set<QuantizedVec2, QuantizedVec2Hash>(vertices.begin(), vertices.end());
+    auto unvisited = std::set(vertices.begin(), vertices.end());
 
     std::vector<SliceOutline> result;
     while (!unvisited.empty()) {

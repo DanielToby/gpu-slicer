@@ -1,8 +1,10 @@
 #include "slicer/adjacency_list.hpp"
 
+#include <iostream>
+
 namespace slicer {
 
-using AdjacencyList = std::unordered_map<QuantizedVec2, std::array<std::optional<QuantizedVec2>, 2>, QuantizedVec2Hash>;
+using AdjacencyList = std::map<QuantizedVec2, std::array<std::optional<QuantizedVec2>, 2>>;
 
 void addOrThrowIfFull(std::array<std::optional<QuantizedVec2>, 2>& list, QuantizedVec2 value) {
     if (!list[0]) {
@@ -16,7 +18,6 @@ void addOrThrowIfFull(std::array<std::optional<QuantizedVec2>, 2>& list, Quantiz
 
 ManifoldAdjacencyList getManifoldOrThrow(const AdjacencyList& adjacencyList) {
     auto result = ManifoldAdjacencyList{};
-    result.reserve(adjacencyList.size());
 
     for (const auto& [vertex, adjacencies] : adjacencyList) {
         if (adjacencies[0] && adjacencies[1]) {
@@ -28,17 +29,15 @@ ManifoldAdjacencyList getManifoldOrThrow(const AdjacencyList& adjacencyList) {
     return result;
 }
 
-ManifoldAdjacencyList getManifoldAdjacencyList(const IntersectData& intersections) {
+ManifoldAdjacencyList getManifoldAdjacencyList(const std::set<QuantizedSegment2D>& segments) {
     AdjacencyList result;
-    result.reserve(intersections.vertices.size());
-
-    for (const auto& edge : intersections.edges) {
-        if (edge.v0 == edge.v1) {
-            throw std::runtime_error("Empty intersection.");
+    for (const auto& [v0, v1] : segments) {
+        if (v0 != v1) {
+            addOrThrowIfFull(result[v0], v1);
+            addOrThrowIfFull(result[v1], v0);
+        } else {
+            std::cout << "Discarding edge smaller than EPSILON." << std::endl;
         }
-
-        addOrThrowIfFull(result[edge.v0], edge.v1);
-        addOrThrowIfFull(result[edge.v1], edge.v0);
     }
 
     return getManifoldOrThrow(result);
