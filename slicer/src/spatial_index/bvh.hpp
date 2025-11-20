@@ -49,7 +49,7 @@ class BVH : public I_SpatialIndex {
 public:
     BVH(ConstructionStrategy strategy) : m_strategy{strategy} {}
 
-    //! Constructs the spacial index.
+    //! Constructs the spatial index.
     void build(const std::vector<Triangle3D>& triangles) override;
 
     //! Returns all triangles intersecting zPosition.

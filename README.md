@@ -18,37 +18,56 @@ This project only requires C++20 and CMake >=3.29 to run. The tests are under ta
 ### Results
 
 ```
-Num triangles: 225154
+Run 1: No Spatial Index, 225154 triangles:
 Num slices: 96
 
 Slice Operations:
-[1: query spatial index] time: 2097μs
-[2: intersect triangles] time: 439μs
-[3: build adjacency list] time: 451μs
-[4: get slice outlines] time: 435μs
-[5: identify windings] time: 44μs
-[6: get outline hierarchy] time: 62μs
+[1: query spatial index] time: 3959μs
+[2: intersect triangles] time: 774μs
+[3: build adjacency list] time: 1083μs
+[4: get slice outlines] time: 586μs
+[5: identify windings] time: 49μs
+[6: get outline hierarchy] time: 146μs
+[7: get polygons] time: 16μs
+
+Total Run (no spatial index):
+[build spatial index (none)] time: 1ms
+[slice (no spatial index)] time: 635ms
+
+
+Run 2: Bounding Volume Hierarchy, 225154 triangles:
+Num slices: 96
+
+Slice Operations:
+[1: query spatial index] time: 349μs
+[2: intersect triangles] time: 765μs
+[3: build adjacency list] time: 1047μs
+[4: get slice outlines] time: 588μs
+[5: identify windings] time: 48μs
+[6: get outline hierarchy] time: 141μs
 [7: get polygons] time: 15μs
 
-Total Run:
-[build spatial index (none)] time: 1ms
-[load stl] time: 207ms
-[slice (no spatial index)] time: 340ms
+Total Run (BVH):
+[build spatial index (BVH)] time: 439ms
+[slice (BVH)] time: 284ms
 ```
 
 Without a spatial index, querying for triangles intersecting Z takes up most of the slicing time.
+With a basic BVH that splits triangles into two even groups, triangle query time is an order of magnitude faster.
 
 ### The Spatial Index
 
-This is passed into the slice pipeline to make showing the performance differences easier. So far I only have the
-[greedy implementation](https://github.com/DanielToby/gpu-slicer/blob/main/slicer/src/spatial_index/no_spatial_index.cpp).
+This is passed into the slice pipeline to make showing the performance differences easier. So far I only have a
+[BVH implemented](https://github.com/DanielToby/gpu-slicer/blob/main/slicer/src/spatial_index/no_spatial_index.cpp). A
+K-D tree would probably be even faster than the results shown above. This is the data structure that I'm hoping to
+accelerate using the GPU.
 
 ```C++
 class I_SpatialIndex {
 public:
     virtual ~I_SpatialIndex() = default;
 
-    //! Constructs the spacial index.
+    //! Constructs the spatial index.
     virtual void build(const std::vector<Triangle3D>& triangles) = 0;
 
     //! Returns all triangles intersecting zPosition.
@@ -64,17 +83,46 @@ public:
 See [main.test.cpp](https://github.com/DanielToby/gpu-slicer/blob/main/slicer/src/slicer/main.test.cpp) for the demo taking an stl file and writing SVGs:
 
 ```C++
-const auto triangles = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
-auto noSpatialIndex = slicer::NoSpatialIndex{};
-noSpatialIndex.build(triangles);
 
-auto slices = slicer::slice(noSpatialIndex, /* thickness = */.5);
+TEST_CASE("Slice 3DBenchy") {
+    auto allOperationTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+    const auto triangles = loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
 
-auto bbox = noSpatialIndex.AABB();
-auto dimensions = slicer::BBox2D{slicer::toVec2(bbox.min), slicer::toVec2(bbox.max)};
-for (auto i = 0; i < slices.size(); i++) {
-    slicer::writeSVG(dimensions, slices[i].polygons, "<i.svg>");
+    // No spatial index:
+    {
+        std::cout << "Run 1: No Spatial Index, " << triangles.size() << " triangles:" << std::endl;
+
+        auto time = timing::Clock::now();
+        auto localTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+
+        auto noSpatialIndex = NoSpatialIndex{};
+        noSpatialIndex.build(triangles);
+        timing::timeAndStore(time, "build spatial index (none)", localTimes);
+
+        auto slices = slice(noSpatialIndex, .5);
+        timing::timeAndStore(time, "slice (no spatial index)", localTimes);
+
+        timing::logTimings("Total Run (no spatial index)", localTimes);
+    }
+
+    // Bounding Volume Hierarchy (BVH):
+    {
+        std::cout << "Run 2: Bounding Volume Hierarchy, " << triangles.size() << " triangles:" << std::endl;
+
+        auto time = timing::Clock::now();
+        auto localTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+
+        auto bvh = BVH{ConstructionStrategy::BinarySplit};
+        bvh.build(triangles);
+        timing::timeAndStore(time, "build spatial index (BVH)", localTimes);
+
+        auto slices = slice(bvh, .5);
+        timing::timeAndStore(time, "slice (BVH)", localTimes);
+
+        timing::logTimings("Total Run (BVH)", localTimes);
+    }
 }
+
 ```
 
 See [slicer.cpp](https://github.com/DanielToby/gpu-slicer/blob/main/slicer/src/slicer/slicer.cpp) for a simple breakdown of the core components of a 3D slicer:

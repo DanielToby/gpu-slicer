@@ -12,7 +12,7 @@ class I_SpatialIndex {
 public:
     virtual ~I_SpatialIndex() = default;
 
-    //! Constructs the spacial index.
+    //! Constructs the spatial index.
     virtual void build(const std::vector<Triangle3D>& triangles) = 0;
 
     //! Returns all triangles intersecting zPosition.
