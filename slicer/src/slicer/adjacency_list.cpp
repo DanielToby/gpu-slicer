@@ -35,8 +35,6 @@ ManifoldAdjacencyList getManifoldAdjacencyList(const std::set<QuantizedSegment2D
         if (v0 != v1) {
             addOrThrowIfFull(result[v0], v1);
             addOrThrowIfFull(result[v1], v0);
-        } else {
-            std::cout << "Discarding edge smaller than EPSILON." << std::endl;
         }
     }
 

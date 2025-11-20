@@ -5,28 +5,56 @@
 #include "slicer/svg.hpp"
 #include "slicer/timing.hpp"
 #include "spatial_index/no_spatial_index.hpp"
+#include "spatial_index/bvh.hpp"
 
-TEST_CASE("Slice 3DBenchy") {
-    slicer::timing::LabelToAccumulatedDuration<std::chrono::milliseconds> accumulatedDurations;
-    auto time = slicer::timing::Clock::now();
+using namespace slicer;
 
-    const auto triangles = slicer::loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
-    slicer::timing::timeAndStore(time, "load stl", accumulatedDurations);
+namespace {
 
-    std::cout << "Num triangles: " << triangles.size() << std::endl;
-
-    auto noSpatialIndex = slicer::NoSpatialIndex{};
-    noSpatialIndex.build(triangles);
-    slicer::timing::timeAndStore(time, "build spatial index (none)", accumulatedDurations);
-
-    auto slices = slicer::slice(noSpatialIndex, .5);
-    slicer::timing::timeAndStore(time, "slice (no spatial index)", accumulatedDurations);
-
-    slicer::timing::logTimings("Total Run", accumulatedDurations);
-
-    const auto dimensions = slicer::toBBox2D(noSpatialIndex.AABB());
+[[maybe_unused]] void writeSlicesToSVGs(const BBox2D& dimensions, std::span<const Slice> slices) {
     for (auto i = 0; i < slices.size(); i++) {
         auto path = "/Users/daniel.toby/Desktop/output/" + std::to_string(i) + ".svg";
-        slicer::writeSVG(dimensions, slices[i].polygons, path, /* scaleFactor = */ 40);
+        writeSVG(dimensions, slices[i].polygons, path, /* scaleFactor = */ 40);
+    }
+}
+
+}
+
+TEST_CASE("Slice 3DBenchy") {
+    auto allOperationTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+    const auto triangles = loadStl("/Users/daniel.toby/Desktop/3DBenchy.stl");
+
+    // No spatial index:
+    {
+        std::cout << "Run 1: No Spatial Index, " << triangles.size() << " triangles:" << std::endl;
+
+        auto time = timing::Clock::now();
+        auto localTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+
+        auto noSpatialIndex = NoSpatialIndex{};
+        noSpatialIndex.build(triangles);
+        timing::timeAndStore(time, "build spatial index (none)", localTimes);
+
+        auto slices = slice(noSpatialIndex, .5);
+        timing::timeAndStore(time, "slice (no spatial index)", localTimes);
+
+        timing::logTimings("Total Run (no spatial index)", localTimes);
+    }
+
+    // Bounding Volume Hierarchy (BVH):
+    {
+        std::cout << "Run 2: Bounding Volume Hierarchy, " << triangles.size() << " triangles:" << std::endl;
+
+        auto time = timing::Clock::now();
+        auto localTimes = timing::LabelToAccumulatedDuration<std::chrono::milliseconds>{};
+
+        auto bvh = BVH{ConstructionStrategy::BinarySplit};
+        bvh.build(triangles);
+        timing::timeAndStore(time, "build spatial index (BVH)", localTimes);
+
+        auto slices = slice(bvh, .5);
+        timing::timeAndStore(time, "slice (BVH)", localTimes);
+
+        timing::logTimings("Total Run (BVH)", localTimes);
     }
 }
