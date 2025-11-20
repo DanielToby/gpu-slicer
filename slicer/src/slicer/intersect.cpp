@@ -74,11 +74,29 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     return *result;
 }
 
+[[nodiscard]] bool allPointsBelow(const Triangle3D& triangle, float zPosition) {
+    return triangle.v0.z() < zPosition && triangle.v1.z() < zPosition && triangle.v2.z() < zPosition;
+}
+
+[[nodiscard]] bool allPointsAbove(const Triangle3D& triangle, float zPosition) {
+    return triangle.v0.z() > zPosition && triangle.v1.z() > zPosition && triangle.v2.z() > zPosition;
+}
+
+[[nodiscard]] bool anyPointOnZ(const Triangle3D& triangle, float zPosition) {
+    return triangle.v0.z() == zPosition || triangle.v1.z() == zPosition || triangle.v2.z() == zPosition;
+}
+
 }
 
 QuantizedVec2::QuantizedVec2(float x, float y) : QuantizedVec2(quantize(x), quantize(y)) {}
 
-Vec2 QuantizedVec2::toVec2() const noexcept { return dequantize(*this); }
+Vec2 QuantizedVec2::toVec2() const noexcept {
+    return dequantize(*this);
+}
+
+bool intersects(const Triangle3D& triangle, float zPosition) {
+    return anyPointOnZ(triangle, zPosition) || (!allPointsBelow(triangle, zPosition) && !allPointsAbove(triangle, zPosition));
+}
 
 std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
     // X(t) = L0 + t * D, where L0 is P0, and D (direction) is p1 - p0.

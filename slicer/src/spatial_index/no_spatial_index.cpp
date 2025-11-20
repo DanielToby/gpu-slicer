@@ -2,26 +2,6 @@
 
 namespace slicer {
 
-namespace {
-
-[[nodiscard]] bool allPointsBelow(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() < zPosition && triangle.v1.z() < zPosition && triangle.v2.z() < zPosition;
-}
-
-[[nodiscard]] bool allPointsAbove(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() > zPosition && triangle.v1.z() > zPosition && triangle.v2.z() > zPosition;
-}
-
-[[nodiscard]] bool anyPointOnZ(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() == zPosition || triangle.v1.z() == zPosition || triangle.v2.z() == zPosition;
-}
-
-[[nodiscard]] bool intersects(const Triangle3D& triangle, float zPosition) {
-    return anyPointOnZ(triangle, zPosition) || (!allPointsBelow(triangle, zPosition) && !allPointsAbove(triangle, zPosition));
-}
-
-}
-
 void NoSpatialIndex::build(const std::vector<Triangle3D>& triangles) {
     m_triangles = triangles;
 }

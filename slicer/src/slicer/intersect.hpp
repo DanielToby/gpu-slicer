@@ -54,6 +54,8 @@ struct QuantizedSegment2D {
     }
 };
 
+[[nodiscard]] bool intersects(const Triangle3D& triangle, float zPosition);
+
 [[nodiscard]] std::optional<Vec3> intersect(const Segment3D& segment, float zPosition);
 
 //! Intersects the triangle with the plane described by zPosition, and adds the results to data.
