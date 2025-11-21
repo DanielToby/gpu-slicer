@@ -47,23 +47,61 @@ struct ClassifiedTriangle {
     }
 };
 
+enum class PlaneRelation { Below, Above, On };
+
+PlaneRelation classifyPointZ(float v, float plane) {
+    if (v < plane - EPSILON) {
+        return PlaneRelation::Below;
+    }
+    if (v > plane + EPSILON) {
+        return PlaneRelation::Above;
+    }
+    return PlaneRelation::On;
+}
+
 ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     ClassifiedTriangle result{
         {triangle.v0, triangle.v1, triangle.v2},
     };
     for (std::size_t i = 0; i < 3; ++i) {
-        const float pz = result.points[i].z();
-
-        if (pz < z) {
-            result.below[result.belowCount++] = i;
-        } else if (pz > z) {
-            result.above[result.aboveCount++] = i;
-        } else {
-            result.on[result.onCount++] = i;
+        switch (classifyPointZ(result.points[i].z(), z)) {
+            case PlaneRelation::Below: {
+                result.below[result.belowCount++] = i;
+                break;
+            }
+            case PlaneRelation::Above: {
+                result.above[result.aboveCount++] = i;
+                break;
+            }
+            case PlaneRelation::On: {
+                result.on[result.onCount++] = i;
+                break;
+            }
         }
     }
-
     return result;
+}
+
+[[nodiscard]] std::array<PlaneRelation, 3> getZRelationsOfPoints(const Triangle3D& triangle, float zPosition) {
+    return {classifyPointZ(triangle.v0.z(), zPosition),
+            classifyPointZ(triangle.v1.z(), zPosition),
+            classifyPointZ(triangle.v2.z(), zPosition)};
+}
+
+[[nodiscard]] bool allEqualTo(const std::array<PlaneRelation, 3>& zRelations, const PlaneRelation& expected) {
+    return std::ranges::all_of(zRelations, [expected](auto p) { return p == expected; });
+}
+
+[[nodiscard]] bool allPointsBelow(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
+    return allEqualTo(zRelations, PlaneRelation::Below);
+}
+
+[[nodiscard]] bool allPointsAbove(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
+    return allEqualTo(zRelations, PlaneRelation::Above);
+}
+
+[[nodiscard]] bool anyPointOnZ(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
+    return allEqualTo(zRelations, PlaneRelation::On);
 }
 
 [[nodiscard]] Vec3 getIntersectionOrThrow(const Vec3& lower, const Vec3& upper, float zPosition) {
@@ -72,18 +110,6 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
         throw std::runtime_error("Bad call to intersect.");
     }
     return *result;
-}
-
-[[nodiscard]] bool allPointsBelow(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() < zPosition && triangle.v1.z() < zPosition && triangle.v2.z() < zPosition;
-}
-
-[[nodiscard]] bool allPointsAbove(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() > zPosition && triangle.v1.z() > zPosition && triangle.v2.z() > zPosition;
-}
-
-[[nodiscard]] bool anyPointOnZ(const Triangle3D& triangle, float zPosition) {
-    return triangle.v0.z() == zPosition || triangle.v1.z() == zPosition || triangle.v2.z() == zPosition;
 }
 
 }
@@ -95,7 +121,8 @@ Vec2 QuantizedVec2::toVec2() const noexcept {
 }
 
 bool intersects(const Triangle3D& triangle, float zPosition) {
-    return anyPointOnZ(triangle, zPosition) || (!allPointsBelow(triangle, zPosition) && !allPointsAbove(triangle, zPosition));
+    auto zRelations = getZRelationsOfPoints(triangle, zPosition);
+    return anyPointOnZ(zRelations, zPosition) || (!allPointsBelow(zRelations, zPosition) && !allPointsAbove(zRelations, zPosition));
 }
 
 std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
@@ -158,7 +185,7 @@ std::optional<Segment3D> intersect(const Triangle3D& triangle, float zPosition) 
         return Segment3D{firstIntersection, secondIntersection};
     }
 
-    throw std::runtime_error("Unhandled triangle intersection case.");
+    throw std::runtime_error("Expected intersecting triangle.");
 }
 
 std::set<QuantizedSegment2D> intersect(std::span<const Triangle3D> triangles, float zPosition) {

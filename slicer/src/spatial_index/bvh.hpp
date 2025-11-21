@@ -47,7 +47,7 @@ enum class ConstructionStrategy {
 //! https://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies
 class BVH : public I_SpatialIndex {
 public:
-    BVH(ConstructionStrategy strategy) : m_strategy{strategy} {}
+    explicit BVH(ConstructionStrategy strategy) : m_strategy{strategy} {}
 
     //! Constructs the spatial index.
     void build(const std::vector<Triangle3D>& triangles) override;
