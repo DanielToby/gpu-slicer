@@ -1,5 +1,6 @@
 #include "slicer/svg.hpp"
 
+#include <functional>
 #include <fstream>
 
 namespace slicer {

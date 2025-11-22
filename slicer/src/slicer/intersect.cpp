@@ -1,5 +1,6 @@
 #include "slicer/intersect.hpp"
 
+#include <algorithm>
 #include <ostream>
 
 namespace slicer {

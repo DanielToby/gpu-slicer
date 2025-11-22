@@ -3,6 +3,7 @@
 #include <numeric>
 #include <ranges>
 #include <set>
+#include <stdexcept>
 
 #include "slicer/bbox.hpp"
 
@@ -142,10 +143,11 @@ void writePolygon(const OutlineHierarchyNode& sourceNode, std::span<const SliceO
     auto outline = sourceOutlines[*sourceNode.index()];
     outline.setWinding(Winding::CCW);
 
-    auto newPolygonIt = destination.insert(destination.end(), Polygon2D{outline.outline});
+    auto newPolygon = Polygon2D{outline.outline};
     for (const auto& child : sourceNode.children()) {
-        writeHole(child, sourceOutlines, destination, *newPolygonIt);
+        writeHole(child, sourceOutlines, destination, newPolygon);
     }
+    destination.push_back(std::move(newPolygon));
 }
 
 void writeHole(const OutlineHierarchyNode& sourceNode, std::span<const SliceOutlineWithWinding> sourceOutlines, std::vector<Polygon2D>& destinationRoot, Polygon2D& destinationParent) {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <algorithm>
+
 #include "slicer/adjacency_list.hpp"
 
 namespace slicer {

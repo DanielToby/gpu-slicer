@@ -1,5 +1,9 @@
 #include "slicer/clipper.hpp"
 
+#include <algorithm>
+#include <functional>
+#include <stdexcept>
+
 namespace slicer {
 
 namespace {

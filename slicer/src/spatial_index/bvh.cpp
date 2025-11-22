@@ -1,5 +1,7 @@
 #include "bvh.hpp"
 
+#include <stdexcept>
+
 namespace slicer {
 
 namespace {
