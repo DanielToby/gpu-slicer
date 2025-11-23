@@ -8,10 +8,17 @@ set_target_properties(slicer PROPERTIES
     CXX_EXTENSIONS NO
 )
 
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/config.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/config.hpp
+)
+
 target_include_directories(slicer
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/vendor/stl_reader
+    ${CMAKE_CURRENT_BINARY_DIR} # For config.hpp
+    $<$<BOOL:${HAVE_CUDA}>:${CMAKE_SOURCE_DIR}/cuda/src>
 )
 
 set(SOURCES
@@ -43,12 +50,17 @@ set(SOURCES
 
 target_sources(slicer PUBLIC ${SOURCES})
 
+if (TARGET slicer_cuda)
+    target_link_libraries(slicer PUBLIC slicer_cuda)
+endif()
+
 # Tests
 
 add_executable(slicer_tests
     src/slicer/adjacency_list.test.cpp
     src/slicer/bbox.test.cpp
     src/slicer/clipper.test.cpp
+    src/slicer/cuda.test.cpp
     src/slicer/intersect.test.cpp
     src/slicer/main.test.cpp
     src/slicer/slice_outlines.test.cpp
@@ -69,6 +81,10 @@ PRIVATE
     Catch2::Catch2WithMain
     slicer
 )
+
+if(TARGET slicer_cuda)
+    target_link_libraries(slicer_tests PRIVATE slicer_cuda)
+endif()
 
 include(CTest)
 include(Catch)
