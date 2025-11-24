@@ -5,7 +5,7 @@
 #include <set>
 #include <stdexcept>
 
-#include "slicer/bbox.hpp"
+#include "geometry/bbox.hpp"
 
 namespace slicer {
 

@@ -2,7 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-#include "slicer/intersect.hpp"
+#include "geometry/intersect.hpp"
 
 using namespace slicer;
 

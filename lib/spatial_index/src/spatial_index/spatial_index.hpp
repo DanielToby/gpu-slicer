@@ -1,7 +1,7 @@
 #pragma once
 
-#include "slicer/bbox.hpp"
-#include "slicer/geometry.hpp"
+#include "geometry/bbox.hpp"
+#include "geometry/geometry.hpp"
 
 namespace slicer {
 

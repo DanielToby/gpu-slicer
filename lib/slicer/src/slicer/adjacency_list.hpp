@@ -2,7 +2,7 @@
 
 #include <map>
 
-#include "slicer/intersect.hpp"
+#include "geometry/intersect.hpp"
 
 namespace slicer {
 

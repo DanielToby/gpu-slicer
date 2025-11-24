@@ -1,27 +1,14 @@
-#include "bvh.hpp"
+#include "spatial_index/bvh.hpp"
 
 #include <stdexcept>
+
+#include "spatial_index/variant.hpp"
 
 namespace slicer {
 
 namespace {
 
-//! Helper for building an overloaded set of lambdas
-template <class... Ts>
-struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-
-//! CTAD guide (C++17 and later)
-template <class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
-
-//! Attaches some extra metadata to the triangle, to avoid recalculations.
-struct BVHTriangle {
-    Triangle3D triangle;
-    Vec3 centroid;
-    BBox3D bbox;
-};
+using detail::BVHTriangle;
 
 [[nodiscard]] Vec3 getCentroid(const Triangle3D& triangle) {
     const auto xAverage = (triangle.v0.x() + triangle.v1.x() + triangle.v2.x()) / 3;
@@ -35,18 +22,6 @@ struct BVHTriangle {
     for (const auto& triangle : triangles) {
         result.extend(triangle.bbox);
     }
-    return result;
-}
-
-//! Creates BVHTriangles from the provided triangles, then sorts them in ascending order by the z-location of their centroids.
-[[nodiscard]] std::vector<BVHTriangle> getZSortedBVHTriangles(std::span<const Triangle3D> triangles) {
-    auto asBvhTriangles = triangles | std::views::transform([](const auto& triangle) {
-                              return BVHTriangle{triangle, getCentroid(triangle), getAABB(triangle)};
-                          });
-    auto result = std::vector<BVHTriangle>{asBvhTriangles.begin(), asBvhTriangles.end()};
-    std::ranges::sort(result, [](const auto& left, const auto& right) {
-        return left.centroid.z() < right.centroid.z();
-    });
     return result;
 }
 
@@ -87,11 +62,11 @@ struct BVHSplitCandidate {
 
     auto parentSurfaceArea = getSurfaceArea(getAABB(zSortedTriangles));
     auto candidates = splitPoints | std::views::transform([&](std::size_t splitPoint) {
-        auto left = zSortedTriangles.subspan(0, splitPoint);
-        auto right = zSortedTriangles.subspan(splitPoint);
-        auto cost = SurfaceAreaHeuristic::calculate(left, right, parentSurfaceArea);
-        return BVHSplitCandidate{left, right, cost};
-    });
+                          auto left = zSortedTriangles.subspan(0, splitPoint);
+                          auto right = zSortedTriangles.subspan(splitPoint);
+                          auto cost = SurfaceAreaHeuristic::calculate(left, right, parentSurfaceArea);
+                          return BVHSplitCandidate{left, right, cost};
+                      });
 
     if (auto it = std::ranges::min_element(candidates, {}, &BVHSplitCandidate::cost); it != candidates.end()) {
         return *it;
@@ -106,13 +81,71 @@ struct BVHSplitCandidate {
     return {result.begin(), result.end()};
 }
 
-//! Returns a node containing all the provided triangles.
-//! Returns a leaf node if the number of triangles is less than MAX_TRIANGLES_PER_LEAF.
-//! Otherwise, returns a node corresponding to the candidate with the lowest SAH cost.
-[[nodiscard]] detail::BVHNode::NodeT getBVHNode(std::span<const BVHTriangle> zSortedTriangles, const ConstructionStrategy& strategy) {
+[[nodiscard]] bool intersects(const BBox3D& bbox, float zPosition) {
+    return bbox.min.z() <= zPosition && bbox.max.z() >= zPosition;
+}
+
+void addLeafTriangles(const detail::BVHLeaf& leaf, std::vector<Triangle3D>& triangles, float zPosition) {
+    for (const auto& triangle : leaf.primitives) {
+        if (intersects(triangle, zPosition)) {
+            triangles.push_back(triangle);
+        }
+    }
+}
+
+void addNodeTriangles(const detail::BVHNode::NodeT& node, std::vector<Triangle3D>& triangles, float zPosition) {
+    std::visit(overloaded{
+                   [&](const detail::BVHLeaf& leaf) {
+                       addLeafTriangles(leaf, triangles, zPosition);
+                   },
+                   [&](const std::unique_ptr<detail::BVHNode>& innerNode) {
+                       if (intersects(innerNode->bbox, zPosition)) {
+                           addNodeTriangles(innerNode->left, triangles, zPosition);
+                           addNodeTriangles(innerNode->right, triangles, zPosition);
+                       }
+                   }},
+               node);
+}
+
+}
+
+std::size_t detail::getNumNodes(const BVHNode::NodeT& node) {
+    auto numNodesInner = [](const std::unique_ptr<BVHNode>& innerNode) -> std::size_t {
+        return 1 + getNumNodes(innerNode->left) + getNumNodes(innerNode->right);
+    };
+    auto numNodesLeaf = [](const BVHLeaf&) -> std::size_t {
+        return 1;
+    };
+    return std::visit(overloaded{numNodesInner, numNodesLeaf}, node);
+}
+
+std::vector<BVHTriangle> detail::getZSortedBVHTriangles(std::span<const Triangle3D> triangles) {
+    auto asBvhTriangles = triangles | std::views::transform([](const auto& triangle) {
+                              return BVHTriangle{triangle, getCentroid(triangle), getAABB(triangle)};
+                          });
+    auto result = std::vector<BVHTriangle>{asBvhTriangles.begin(), asBvhTriangles.end()};
+    std::ranges::sort(result, [](const auto& left, const auto& right) {
+        return left.centroid.z() < right.centroid.z();
+    });
+    return result;
+}
+
+std::vector<std::size_t> detail::getBalancedBinarySplitPoints(std::size_t numItems, std::size_t minItemsPerSide) {
+    std::vector<std::size_t> result;
+    if (numItems < minItemsPerSide * 2) {
+        return result;
+    }
+    auto end = minItemsPerSide > 0 ? (numItems - minItemsPerSide + 1) : numItems;
+    for (auto i = minItemsPerSide; i < end; ++i) {
+        result.emplace_back(i);
+    }
+    return result;
+}
+
+detail::BVHNode::NodeT detail::getBVHNode(std::span<const BVHTriangle> zSortedTriangles, const ConstructionStrategy& strategy) {
     // Leaf
     if (zSortedTriangles.size() <= MAX_PRIMITIVES_PER_BVH_LEAF) {
-        return detail::BVHLeaf{getTriangles(zSortedTriangles)};
+        return BVHLeaf{getTriangles(zSortedTriangles)};
     }
 
     auto makeInternalNode = [&](const auto& leftSpan, const auto& rightSpan) {
@@ -122,7 +155,7 @@ struct BVHSplitCandidate {
         auto bbox = getAABB(leftSpan);
         bbox.extend(getAABB(rightSpan));
 
-        return std::make_unique<detail::BVHNode>(std::move(left), std::move(right), bbox);
+        return std::make_unique<BVHNode>(std::move(left), std::move(right), bbox);
     };
 
     // Uneven Split: one candidate is made by balancing the available primitives. This is probably suboptimal.
@@ -146,53 +179,13 @@ struct BVHSplitCandidate {
     }
 }
 
-[[nodiscard]] bool intersects(const BBox3D& bbox, float zPosition) {
-    return bbox.min.z() <= zPosition && bbox.max.z() >= zPosition;
-}
-
-void addTriangles(const detail::BVHLeaf& leaf, std::vector<Triangle3D>& triangles, float zPosition) {
-    for (const auto& triangle : leaf.primitives) {
-        if (intersects(triangle, zPosition)) {
-            triangles.push_back(triangle);
-        }
-    }
-}
-
-void addTriangles(const detail::BVHNode::NodeT& node, std::vector<Triangle3D>& triangles, float zPosition) {
-    std::visit(overloaded{
-                   [&](const detail::BVHLeaf& leaf) {
-                       addTriangles(leaf, triangles, zPosition);
-                   },
-                   [&](const std::unique_ptr<detail::BVHNode>& innerNode) {
-                       if (intersects(innerNode->bbox, zPosition)) {
-                           addTriangles(innerNode->left, triangles, zPosition);
-                           addTriangles(innerNode->right, triangles, zPosition);
-                       }
-                   }},
-               node);
-}
-
-void addTriangles(const detail::BVHNode& node, std::vector<Triangle3D>& triangles, float zPosition) {
-    addTriangles(node.left, triangles, zPosition);
-    addTriangles(node.right, triangles, zPosition);
-}
-
-}
-
-std::vector<std::size_t> detail::getBalancedBinarySplitPoints(std::size_t numItems, std::size_t minItemsPerSide) {
-    std::vector<std::size_t> result;
-    if (numItems < minItemsPerSide * 2) {
-        return result;
-    }
-    auto end = minItemsPerSide > 0 ? (numItems - minItemsPerSide + 1) : numItems;
-    for (auto i = minItemsPerSide; i < end; ++i) {
-        result.emplace_back(i);
-    }
-    return result;
+void detail::addTriangles(const BVHNode& node, std::vector<Triangle3D>& triangles, float zPosition) {
+    addNodeTriangles(node.left, triangles, zPosition);
+    addNodeTriangles(node.right, triangles, zPosition);
 }
 
 void BVH::build(const std::vector<Triangle3D>& triangles) {
-    auto zSortedTriangles = getZSortedBVHTriangles(triangles);
+    auto zSortedTriangles = detail::getZSortedBVHTriangles(triangles);
     auto root = getBVHNode(zSortedTriangles, m_strategy);
     if (std::holds_alternative<detail::BVHLeaf>(root)) {
         throw std::runtime_error("Too few triangles.");
@@ -216,6 +209,13 @@ BBox3D BVH::AABB() const {
         throw std::runtime_error("Uninitialized. Call build(...) first.");
     }
     return m_root->bbox;
+}
+
+std::size_t BVH::getNumNodes() const {
+    if (!m_root) {
+        return 0;
+    }
+    return 1 + detail::getNumNodes(m_root->left) + detail::getNumNodes(m_root->right);
 }
 
 }

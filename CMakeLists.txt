@@ -16,4 +16,4 @@ if (ENABLE_CUDA)
     endif()
 endif()
 
-add_subdirectory(slicer)
+add_subdirectory(lib)

@@ -12,7 +12,7 @@ TEST_CASE("CUDA: addKernel") {
     int b[4] = {10,20,30,40};
     int out[4];
 
-    runAddKernel(a, b, out, 4);
+    cuda::kernels::runAddKernel(a, b, out, 4);
 
     REQUIRE(out[0] == 11);
     REQUIRE(out[1] == 22);

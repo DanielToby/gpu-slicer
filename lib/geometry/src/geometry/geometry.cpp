@@ -1,4 +1,4 @@
-#include "slicer/geometry.hpp"
+#include "geometry/geometry.hpp"
 
 #include <ostream>
 

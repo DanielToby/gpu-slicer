@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
-#include "slicer/bbox.hpp"
+#include "geometry/bbox.hpp"
 
 TEST_CASE("BBox: default constructed BBox is empty") {
     auto empty2D = slicer::BBox2D{};

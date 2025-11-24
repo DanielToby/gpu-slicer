@@ -3,7 +3,7 @@
 #include <optional>
 #include <set>
 
-#include "slicer/geometry.hpp"
+#include "geometry/geometry.hpp"
 
 namespace slicer {
 

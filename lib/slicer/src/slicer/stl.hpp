@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "slicer/geometry.hpp"
+#include "geometry/geometry.hpp"
 
 namespace slicer {
 

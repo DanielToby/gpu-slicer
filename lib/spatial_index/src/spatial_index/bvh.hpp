@@ -6,6 +6,13 @@
 #include "spatial_index/spatial_index.hpp"
 
 namespace slicer {
+
+//! The different strategies supported for constructing the BVH.
+enum class ConstructionStrategy {
+    BinarySplit,         // Sorts triangles by their centroids z-position, then splits them evenly.
+    SurfaceAreaHeuristic // Sorts triangles by their centroids z-position, then chooses the split with lowest SAH cost.
+};
+
 namespace detail {
 
 //! MAX_PRIMITIVES_PER_BVH_LEAF is implementation defined.
@@ -32,18 +39,33 @@ struct BVHNode {
     BBox3D bbox;
 };
 
+//! Returns the number of nodes in the bvh, including this one (the root).
+[[nodiscard]] std::size_t getNumNodes(const BVHNode::NodeT& node);
+
+//! Attaches some extra metadata to the triangle, to avoid recalculations.
+struct BVHTriangle {
+    Triangle3D triangle;
+    Vec3 centroid;
+    BBox3D bbox;
+};
+
+//! Creates BVHTriangles from the provided triangles, then sorts them in ascending order by the z-location of their centroids.
+[[nodiscard]] std::vector<BVHTriangle> getZSortedBVHTriangles(std::span<const Triangle3D> triangles);
+
 //! Returns every split point for a range of size `numItems`. Returns no split points if minItemsPerSide is not possible.
 [[nodiscard]] std::vector<std::size_t> getBalancedBinarySplitPoints(std::size_t numItems, std::size_t minItemsPerSide);
 
+//! Returns a node containing all the provided triangles.
+//! Returns a leaf node if the number of triangles is less than MAX_TRIANGLES_PER_LEAF.
+//! Otherwise, returns a node corresponding to the candidate with the lowest cost, based on the ConstructionStrategy.
+[[nodiscard]] BVHNode::NodeT getBVHNode(std::span<const BVHTriangle> zSortedTriangles, const ConstructionStrategy& strategy);
+
+//! Adds any triangles present in `node` that intersect `zPosition`.
+void addTriangles(const BVHNode& node, std::vector<Triangle3D>& triangles, float zPosition);
+
 }
 
-//! The different strategies supported for constructing the BVH.
-enum class ConstructionStrategy {
-    BinarySplit,         // Sorts triangles by their centroids z-position, then splits them evenly.
-    SurfaceAreaHeuristic // Sorts triangles by their centroids z-position, then chooses the split with lowest SAH cost.
-};
-
-//! Divides primitives into two distinct groups based on a heuristic until min number of primitives per leaf is achieved.
+//! Divides primitives into two distinct groups based on a heuristic until a maximum number of primitives per leaf is achieved.
 //! https://www.pbr-book.org/3ed-2018/Primitives_and_Intersection_Acceleration/Bounding_Volume_Hierarchies
 class BVH : public I_SpatialIndex {
 public:
@@ -57,6 +79,9 @@ public:
 
     //! The BBox of the index.
     [[nodiscard]] BBox3D AABB() const override;
+
+    //! Returns the number of nodes in the BVH.
+    [[nodiscard]] std::size_t getNumNodes() const;
 
 private:
     ConstructionStrategy m_strategy;

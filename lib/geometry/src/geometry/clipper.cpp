@@ -1,4 +1,4 @@
-#include "slicer/clipper.hpp"
+#include "geometry/clipper.hpp"
 
 #include <algorithm>
 #include <functional>

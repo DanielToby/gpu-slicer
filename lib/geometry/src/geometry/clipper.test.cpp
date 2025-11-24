@@ -1,10 +1,10 @@
-#include "catch2/generators/catch_generators.hpp"
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
 
-#include "slicer/clipper.hpp"
-#include "slicer/intersect.hpp"
+#include "geometry/clipper.hpp"
+#include "geometry/intersect.hpp"
 
 using namespace slicer;
 

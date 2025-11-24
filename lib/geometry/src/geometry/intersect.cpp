@@ -1,4 +1,4 @@
-#include "slicer/intersect.hpp"
+#include "geometry/intersect.hpp"
 
 #include <algorithm>
 #include <ostream>
@@ -93,6 +93,10 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     return std::ranges::all_of(zRelations, [expected](auto p) { return p == expected; });
 }
 
+[[nodiscard]] bool anyEqualTo(const std::array<PlaneRelation, 3>& zRelations, const PlaneRelation& expected) {
+    return std::ranges::any_of(zRelations, [expected](auto p) { return p == expected; });
+}
+
 [[nodiscard]] bool allPointsBelow(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
     return allEqualTo(zRelations, PlaneRelation::Below);
 }
@@ -102,7 +106,7 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
 }
 
 [[nodiscard]] bool anyPointOnZ(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
-    return allEqualTo(zRelations, PlaneRelation::On);
+    return anyEqualTo(zRelations, PlaneRelation::On);
 }
 
 [[nodiscard]] Vec3 getIntersectionOrThrow(const Vec3& lower, const Vec3& upper, float zPosition) {

@@ -1,4 +1,4 @@
-#include "slicer/bbox.hpp"
+#include "geometry/bbox.hpp"
 
 namespace slicer {
 

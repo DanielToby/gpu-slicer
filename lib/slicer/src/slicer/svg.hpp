@@ -3,7 +3,7 @@
 #include <vector>
 #include <string>
 
-#include "slicer/bbox.hpp"
+#include "geometry/bbox.hpp"
 
 namespace slicer {
 

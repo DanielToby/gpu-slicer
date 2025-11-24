@@ -1,5 +1,6 @@
 add_library(slicer_cuda STATIC
     src/cuda/kernels/add_kernel.cu
+    src/cuda/kernels/intersect_kernel.cu
 )
 
 set_target_properties(slicer_cuda PROPERTIES

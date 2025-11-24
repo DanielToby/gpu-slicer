@@ -3,8 +3,8 @@
 #include <algorithm>
 #include <limits>
 
-#include "slicer/geometry.hpp"
-#include "slicer/intersect.hpp"
+#include "geometry/geometry.hpp"
+#include "geometry/intersect.hpp"
 
 namespace slicer {
 
