@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <variant>
+#include <ranges>
 
 #include "spatial_index/spatial_index.hpp"
 

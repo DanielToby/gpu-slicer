@@ -6,10 +6,10 @@ namespace slicer {
 
 std::vector<float> getSliceHeights(const BBox3D& volume, float thickness) {
     std::vector<float> result;
-    const auto bottom = volume.min.z();
+    const auto bottom = volume.min.z;
 
     auto current = bottom;
-    while (current < volume.max.z()) {
+    while (current < volume.max.z) {
         result.emplace_back(current);
         current += thickness;
     }

@@ -11,9 +11,9 @@ namespace {
 using detail::BVHTriangle;
 
 [[nodiscard]] Vec3 getCentroid(const Triangle3D& triangle) {
-    const auto xAverage = (triangle.v0.x() + triangle.v1.x() + triangle.v2.x()) / 3;
-    const auto yAverage = (triangle.v0.y() + triangle.v1.y() + triangle.v2.y()) / 3;
-    const auto zAverage = (triangle.v0.z() + triangle.v1.z() + triangle.v2.z()) / 3;
+    const auto xAverage = (triangle.v0.x + triangle.v1.x + triangle.v2.x) / 3;
+    const auto yAverage = (triangle.v0.y + triangle.v1.y + triangle.v2.y) / 3;
+    const auto zAverage = (triangle.v0.z + triangle.v1.z + triangle.v2.z) / 3;
     return {xAverage, yAverage, zAverage};
 }
 
@@ -26,9 +26,9 @@ using detail::BVHTriangle;
 }
 
 double getSurfaceArea(const BBox3D& bbox) {
-    const auto w = bbox.max.x() - bbox.min.x();
-    const auto h = bbox.max.y() - bbox.min.y();
-    const auto d = bbox.max.z() - bbox.min.z();
+    const auto w = bbox.max.x - bbox.min.x;
+    const auto h = bbox.max.y - bbox.min.y;
+    const auto d = bbox.max.z - bbox.min.z;
     return 2 * (w * h + h * d + w * d);
 }
 
@@ -82,7 +82,7 @@ struct BVHSplitCandidate {
 }
 
 [[nodiscard]] bool intersects(const BBox3D& bbox, float zPosition) {
-    return bbox.min.z() <= zPosition && bbox.max.z() >= zPosition;
+    return bbox.min.z <= zPosition && bbox.max.z >= zPosition;
 }
 
 void addLeafTriangles(const detail::BVHLeaf& leaf, std::vector<Triangle3D>& triangles, float zPosition) {
@@ -125,7 +125,7 @@ std::vector<BVHTriangle> detail::getZSortedBVHTriangles(std::span<const Triangle
                           });
     auto result = std::vector<BVHTriangle>{asBvhTriangles.begin(), asBvhTriangles.end()};
     std::ranges::sort(result, [](const auto& left, const auto& right) {
-        return left.centroid.z() < right.centroid.z();
+        return left.centroid.z < right.centroid.z;
     });
     return result;
 }

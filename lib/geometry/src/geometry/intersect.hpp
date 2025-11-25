@@ -64,7 +64,7 @@ struct QuantizedSegment2D {
 [[nodiscard]] std::optional<Segment3D> intersect(const Triangle3D& triangle, float zPosition);
 
 //! Returns all segments produced by intersecting triangles with zPosition.
-std::set<QuantizedSegment2D> intersect(std::span<const Triangle3D> triangles, float zPosition);
+std::set<QuantizedSegment2D> intersect(const std::vector<Triangle3D>& triangles, float zPosition);
 
 std::ostream& operator<<(std::ostream& os, const QuantizedVec2& v);
 

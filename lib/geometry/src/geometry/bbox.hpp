@@ -23,17 +23,17 @@ struct BBoxHelpers<Vec2> {
         return {std::numeric_limits<ValueType>::max(), std::numeric_limits<ValueType>::max()};
     }
     [[nodiscard]] static bool lessEqual(const Vec2& lhs, const Vec2& rhs) {
-        return lhs.x() <= rhs.x() && lhs.y() <= rhs.y();
+        return lhs.x <= rhs.x && lhs.y <= rhs.y;
     }
     [[nodiscard]] static Vec2 combinedMin(const Vec2& lhs, const Vec2& rhs) {
-        return {std::min(lhs.x(), rhs.x()), std::min(lhs.y(), rhs.y())};
+        return {std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y)};
     }
     [[nodiscard]] static Vec2 combinedMax(const Vec2& lhs, const Vec2& rhs) {
-        return {std::max(lhs.x(), rhs.x()), std::max(lhs.y(), rhs.y())};
+        return {std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
     }
     [[nodiscard]] static ValueType area(const Vec2& a, const Vec2& b) {
-        auto spans = a.makeBinaryOp(b, [](ValueType min, ValueType max) { return max - min; });
-        return spans.product();
+        auto spans = makeBinaryOp(a, b, [](ValueType min, ValueType max) { return max - min; });
+        return product(spans);
     }
 };
 
@@ -72,17 +72,17 @@ struct BBoxHelpers<Vec3> {
         return {std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max()};
     }
     [[nodiscard]] static bool lessEqual(const Vec3& lhs, const Vec3& rhs) {
-        return lhs.x() <= rhs.x() && lhs.y() <= rhs.y() && lhs.z() <= rhs.z();
+        return lhs.x <= rhs.x && lhs.y <= rhs.y && lhs.z <= rhs.z;
     }
     [[nodiscard]] static Vec3 combinedMin(const Vec3& lhs, const Vec3& rhs) {
-        return {std::min(lhs.x(), rhs.x()), std::min(lhs.y(), rhs.y()), std::min(lhs.z(), rhs.z())};
+        return {std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y), std::min(lhs.z, rhs.z)};
     }
     [[nodiscard]] static Vec3 combinedMax(const Vec3& lhs, const Vec3& rhs) {
-        return {std::max(lhs.x(), rhs.x()), std::max(lhs.y(), rhs.y()), std::max(lhs.z(), rhs.z())};
+        return {std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z)};
     }
     [[nodiscard]] static float area(const Vec3& a, const Vec3& b) {
-        auto spans = a.makeBinaryOp(b, [](float min, float max) { return max - min; });
-        return spans.product();
+        auto spans = makeBinaryOp(a, b, [](float min, float max) { return max - min; });
+        return product(spans);
     }
 };
 
@@ -123,12 +123,12 @@ using BBox3D = BBox<Vec3>;
 using QuantizedBBox2D = BBox<QuantizedVec2>;
 
 [[nodiscard]] inline BBox2D toBBox2D(const BBox3D& bbox) {
-    return {bbox.min.as<Vec2>(), bbox.max.as<Vec2>() };
+    return {bbox.min.toVec2(), bbox.max.toVec2() };
 }
 
-[[nodiscard]] BBox2D getAABB(std::span<const Vec2> vertices);
+[[nodiscard]] BBox2D getAABB(const std::vector<Vec2>& vertices);
 
-[[nodiscard]] BBox3D getAABB(std::span<const Vec3> vertices);
+[[nodiscard]] BBox3D getAABB(const std::vector<Vec3>& vertices);
 
 [[nodiscard]] BBox2D getAABB(const Polygon2D& polygon);
 

@@ -47,7 +47,7 @@ bool compareIgnoringStart(const Polygon3D& a, const Polygon3D& b) {
 }
 
 [[nodiscard, maybe_unused]] std::string toString(const Vec3& pt) {
-    return "{" + std::to_string(pt.x()) + ", " + std::to_string(pt.y()) + ", " + std::to_string(pt.z()) + "}";
+    return "{" + std::to_string(pt.x) + ", " + std::to_string(pt.y) + ", " + std::to_string(pt.z) + "}";
 }
 
 [[nodiscard, maybe_unused]] std::string toString(const Polygon3D& polygon) {

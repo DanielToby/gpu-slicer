@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <ranges>
 
 #include "slicer/adjacency_list.hpp"
 
@@ -45,7 +46,7 @@ public:
     explicit OutlineHierarchyNode(std::size_t index) : m_index(index) {}
 
     //! If the outline is inside this, inserts it into the smallest containing outline.
-    [[nodiscard]] bool insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines);
+    [[nodiscard]] bool insert(std::size_t i, const std::vector<SliceOutlineWithWinding>& sortedOutlines);
 
     //! Only the root node has nullopt index.
     [[nodiscard]] std::optional<std::size_t> index() const { return m_index; }

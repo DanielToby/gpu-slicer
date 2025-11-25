@@ -11,9 +11,9 @@ namespace {
 [[nodiscard]] bool insideInclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return p.z() >= zPosition;
+        return p.z >= zPosition;
     case KeepRegion::Below:
-        return p.z() <= zPosition;
+        return p.z <= zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -21,9 +21,9 @@ namespace {
 [[nodiscard]] bool insideExclusive(const Vec3& p, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return p.z() > zPosition;
+        return p.z > zPosition;
     case KeepRegion::Below:
-        return p.z() < zPosition;
+        return p.z < zPosition;
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -41,9 +41,9 @@ namespace {
 [[nodiscard]] std::optional<std::size_t> getStartingIndex(const std::vector<Vec3>& vertices, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
         case KeepRegion::Above:
-            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z() > zPosition; });
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z > zPosition; });
         case KeepRegion::Below:
-            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z() < zPosition; });
+            return getFirstIndexWhere(vertices, [&zPosition](const Vec3& vertex) { return vertex.z < zPosition; });
     }
     throw std::invalid_argument("Invalid keep region");
 }
@@ -51,18 +51,18 @@ namespace {
 [[nodiscard]] bool allPointsInRegion(const std::vector<Vec3>& vertices, float zPosition, KeepRegion keepRegion) {
     switch (keepRegion) {
     case KeepRegion::Above:
-        return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-            return v.z() >= zPosition;
+        return std::all_of(vertices.begin(), vertices.end(), [&zPosition](const Vec3& v) {
+            return v.z >= zPosition;
         });
     case KeepRegion::Below:
         //! All points on ZPosition for KeepRegion::Below is considered out of bounds.
-        if (std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-                return v.z() == zPosition;
+        if (std::all_of(vertices.begin(), vertices.end(), [&zPosition](const Vec3& v) {
+                return v.z == zPosition;
             })) {
             return false;
         }
-        return std::ranges::all_of(vertices, [&zPosition](const Vec3& v) {
-            return v.z() <= zPosition;
+        return std::all_of(vertices.begin(), vertices.end(), [&zPosition](const Vec3& v) {
+            return v.z <= zPosition;
         });
     }
     throw std::invalid_argument("Invalid keep region");
@@ -118,7 +118,7 @@ Polygon3D clip(const Polygon3D& polygon, float zPosition, KeepRegion keepRegion)
         }
         case LineBehavior::Exits: {
             result.vertices.push_back(p0);
-            if (p0.z() != zPosition) {
+            if (p0.z != zPosition) {
                 // Special case: p0 on Z -> p1 out is considered an exit. Don't double-count p0.
                 const auto intersection = intersect(Segment3D{p0, p1}, zPosition);
                 if (!intersection) {
