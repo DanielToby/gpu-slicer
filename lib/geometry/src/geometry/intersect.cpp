@@ -97,16 +97,17 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
     return std::any_of(zRelations.begin(), zRelations.end(), [expected](auto p) { return p == expected; });
 }
 
-[[nodiscard]] bool allPointsBelow(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
+[[nodiscard]] bool allPointsBelow(const std::array<PlaneRelation, 3>& zRelations) {
     return allEqualTo(zRelations, PlaneRelation::Below);
 }
 
-[[nodiscard]] bool allPointsAbove(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
+[[nodiscard]] bool allPointsAbove(const std::array<PlaneRelation, 3>& zRelations) {
     return allEqualTo(zRelations, PlaneRelation::Above);
 }
 
-[[nodiscard]] bool anyPointOnZ(const std::array<PlaneRelation, 3>& zRelations, float zPosition) {
-    return anyEqualTo(zRelations, PlaneRelation::On);
+[[nodiscard]] bool anyPointOnZ(const std::array<PlaneRelation, 3>& zRelations) {
+    // TODO: Probably want anyEqualTo here.
+    return allEqualTo(zRelations, PlaneRelation::On);
 }
 
 [[nodiscard]] Vec3 getIntersectionOrThrow(const Vec3& lower, const Vec3& upper, float zPosition) {
@@ -127,7 +128,7 @@ Vec2 QuantizedVec2::toVec2() const noexcept {
 
 bool intersects(const Triangle3D& triangle, float zPosition) {
     auto zRelations = getZRelationsOfPoints(triangle, zPosition);
-    return anyPointOnZ(zRelations, zPosition) || (!allPointsBelow(zRelations, zPosition) && !allPointsAbove(zRelations, zPosition));
+    return anyPointOnZ(zRelations) || (!allPointsBelow(zRelations) && !allPointsAbove(zRelations));
 }
 
 std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
