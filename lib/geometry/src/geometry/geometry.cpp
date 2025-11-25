@@ -5,11 +5,11 @@
 namespace slicer {
 
 std::ostream& operator<<(std::ostream& os, const Vec2& v) {
-    return os << "Vec2{x=" << v.x() << ", y=" << v.y() << "}";
+    return os << "Vec2{x=" << v.x << ", y=" << v.y << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Vec3& v) {
-    return os << "Vec2{x=" << v.x() << ", y=" << v.y() << ", z=" << v.z() << "}";
+    return os << "Vec2{x=" << v.x << ", y=" << v.y << ", z=" << v.z << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const Segment2D& v) {

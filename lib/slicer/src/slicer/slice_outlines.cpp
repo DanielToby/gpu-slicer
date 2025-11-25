@@ -1,6 +1,6 @@
 #include "slicer/slice_outlines.hpp"
 
-#include <numeric>
+#include <algorithm>
 #include <ranges>
 #include <set>
 #include <stdexcept>
@@ -12,7 +12,7 @@ namespace slicer {
 namespace {
 
 [[nodiscard]] float getDeterminant(const Vec2& p0, const Vec2& p1) {
-    return p0.x() * p1.y() - p1.x() * p0.y();
+    return p0.x * p1.y - p1.x * p0.y;
 }
 
 double calculateArea(const SliceOutline& outline) {
@@ -48,7 +48,7 @@ std::optional<Vec2> intersect(const Segment2D& line, const Ray2D& ray) {
 //! Sorts outlines in ascending order by AABB size.
 [[nodiscard]] std::vector<SliceOutlineWithWinding> sort(std::vector<SliceOutlineWithWinding>&& outlines) {
     auto result = std::move(outlines);
-    std::ranges::sort(outlines, [](const auto& a, const auto& b) {
+    std::sort(outlines.begin(), outlines.end(), [](const auto& a, const auto& b) {
         return getAABB(a.outline) < getAABB(b.outline);
     });
     return result;
@@ -123,7 +123,7 @@ std::vector<SliceOutlineWithWinding> identifyWindings(const std::vector<SliceOut
     return {result.begin(), result.end()};
 }
 
-bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines) {
+bool OutlineHierarchyNode::insert(std::size_t i, const std::vector<SliceOutlineWithWinding>&  sortedOutlines) {
     if (!m_index || isInside(sortedOutlines[i].outline, sortedOutlines[*m_index].outline)) {
         for (auto& child : m_children) {
             if (child.insert(i, sortedOutlines)) {

@@ -1,140 +1,114 @@
 #pragma once
 
 #include <array>
+#include <ostream>
 #include <numeric>
-#include <ranges>
 #include <vector>
 
 namespace slicer {
 
-//! All members common to Vectors of N dimensions.
-template<std::size_t N>
-class VecBase {
-public:
-    VecBase() = default;
+namespace detail {
 
-    template <typename... Ts>
-    explicit VecBase(Ts&&... xs) :
-        data{{static_cast<float>(xs)...}} {
-        static_assert(sizeof...(Ts) == N);
-    }
+template <typename Vec, typename Op, std::size_t... I>
+[[nodiscard]] constexpr Vec makeUnaryOpImpl(const Vec& a, Op op, std::index_sequence<I...>) {
+    return Vec{op(a.data()[I])...};
+}
 
-    [[nodiscard]] bool operator==(const VecBase& other) const = default;
+template <typename Vec, typename Op, std::size_t... I>
+[[nodiscard]] constexpr Vec makeBinaryOpImpl(const Vec& a, const Vec& b, Op op, std::index_sequence<I...>) {
+    return Vec{op(a.data()[I], b.data()[I])...};
+}
 
-    [[nodiscard]] constexpr VecBase operator+(const VecBase& other) const {
-        return makeBinaryOp(other, [](float a, float b) { return a + b; });
-    }
+}
 
-    [[nodiscard]] constexpr VecBase operator-(const VecBase& other) const {
-        return makeBinaryOp(other, [](float a, float b) { return a - b; });
-    }
+template <typename Vec, typename Op>
+constexpr Vec makeUnaryOp(const Vec& a, Op op) {
+    return detail::makeUnaryOpImpl(a, op, std::make_index_sequence<Vec::dim>{});
+}
 
-    [[nodiscard]] constexpr VecBase operator*(const VecBase& other) const {
-        return makeBinaryOp(other, [](float a, float b) { return a * b; });
-    }
+template <typename Vec, typename Op>
+constexpr Vec makeBinaryOp(const Vec& a, const Vec& b, Op op) {
+    return detail::makeBinaryOpImpl(a, b, op, std::make_index_sequence<Vec::dim>{});
+}
 
-    [[nodiscard]] constexpr VecBase operator*(float s) const {
-        return makeUnaryOp([&s](float a) { return a * s; });
-    }
-
-    [[nodiscard]] constexpr float sum() const {
-        return std::accumulate(data.begin(), data.end(), 0.0f);
-    }
-
-    [[nodiscard]] constexpr float product() const {
-        return std::accumulate(data.begin(), data.end(), 1.0f,
-            [](float a, float b) { return a * b; });
-    }
-
-    [[nodiscard]] static constexpr float dot(const VecBase& a, const VecBase& b) {
-        return (a * b).sum();
-    }
-
-    template <typename Op>
-    constexpr VecBase makeUnaryOp(Op op) const {
-        return makeUnaryOpImpl(op, std::make_index_sequence<N>{});
-    }
-
-    template <typename Op>
-    constexpr VecBase makeBinaryOp(const VecBase& o, Op op) const {
-        return makeBinaryOpImpl(o, op, std::make_index_sequence<N>{});
-    }
-
-protected:
-    std::array<float, N> data{};
-
-private:
-    template <typename Op, std::size_t... I>
-        constexpr VecBase makeUnaryOpImpl(Op op, std::index_sequence<I...>) const {
-        return VecBase{op(data[I])...};
-    }
-
-    template <typename Op, std::size_t... I>
-    constexpr VecBase makeBinaryOpImpl(const VecBase& o, Op op, std::index_sequence<I...>) const {
-        return VecBase{op(data[I], o.data[I])...};
-    }
-};
-
-template<std::size_t N>
-class Vec : public VecBase<N> {
-public:
-    using VecBase<N>::VecBase;
-    using VecBase<N>::makeUnaryOp;
-    using VecBase<N>::makeBinaryOp;
-protected:
-    using VecBase<N>::data;
-};
-
-//! Specializations on this type allow explicit valid conversions between vector types.
-template <typename From, typename To>
-struct VecConvert {};
-
-template <>
-class Vec<2> : public VecBase<2> {
-public:
-    Vec() = default;
-    Vec(float x, float y) : VecBase(x, y) {}
-    constexpr Vec(const VecBase& base) : VecBase(base) {}
-
+struct Vec2 {
     using ValueType = float;
+    static constexpr std::size_t dim = 2;
 
-    [[nodiscard]] float x() const { return this->data[0]; }
-    [[nodiscard]] float y() const { return this->data[1]; }
+    ValueType x;
+    ValueType y;
 
-    template <typename To>
-    [[nodiscard]] To as() const {
-        return VecConvert<Vec<2>, To>::to(*this);
+    [[nodiscard]] std::array<float, 2> data() const { return {x, y}; }
+
+    [[nodiscard]] bool operator==(const Vec2& other) const {
+        return x == other.x && y == other.y;
+    }
+
+    [[nodiscard]] constexpr Vec2 operator+(const Vec2& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av + bv; });
+    }
+
+    [[nodiscard]] constexpr Vec2 operator-(const Vec2& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av - bv; });
+    }
+
+    [[nodiscard]] constexpr Vec2 operator*(const Vec2& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av * bv; });
+    }
+
+    [[nodiscard]] constexpr Vec2 operator*(float s) const {
+        return makeUnaryOp(*this, [&s](float a) { return a * s; });
     }
 };
-using Vec2 = Vec<2>;
 
-template <>
-class Vec<3> : public VecBase<3> {
-public:
-    Vec() = default;
-    Vec(float x, float y, float z) : VecBase(x, y, z) {}
-    constexpr Vec(const VecBase& base) : VecBase(base) {}
-
+struct Vec3 {
     using ValueType = float;
+    static constexpr std::size_t dim = 3;
 
-    [[nodiscard]] float x() const { return this->data[0]; }
-    [[nodiscard]] float y() const { return this->data[1]; }
-    [[nodiscard]] float z() const { return this->data[2]; }
+    ValueType x;
+    ValueType y;
+    ValueType z;
 
-    template <typename To>
-    [[nodiscard]] To as() const {
-        return VecConvert<Vec<3>, To>::to(*this);
+    [[nodiscard]] bool operator==(const Vec3& other) const {
+        return x == other.x && y == other.y && z == other.z;
     }
-};
-using Vec3 = Vec<3>;
 
-//! This is the only supported vector conversion.
-template<>
-struct VecConvert<Vec3, Vec2> {
-    [[nodiscard]] static Vec2 to(const Vec3& v) {
-        return {v.x(), v.y()};
+    [[nodiscard]] std::array<float, 3> data() const { return {x, y, z}; }
+
+    [[nodiscard]] constexpr Vec3 operator+(const Vec3& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av + bv; });
     }
+
+    [[nodiscard]] constexpr Vec3 operator-(const Vec3& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av - bv; });
+    }
+
+    [[nodiscard]] constexpr Vec3 operator*(const Vec3& other) const {
+        return makeBinaryOp(*this, other, [](float av, float bv) { return av * bv; });
+    }
+
+    [[nodiscard]] constexpr Vec3 operator*(float s) const {
+        return makeUnaryOp(*this, [&s](float a) { return a * s; });
+    }
+
+    [[nodiscard]] Vec2 toVec2() const { return {x, y}; }
 };
+
+template <typename Vec>
+[[nodiscard]] constexpr float sum(const Vec& a) {
+    return std::accumulate(a.data().begin(), a.data().end(), 0.0f);
+}
+
+template <typename Vec>
+[[nodiscard]] constexpr float product(const Vec& a) {
+    return std::accumulate(a.data().begin(), a.data().end(), 1.0f,
+        [](float a, float b) { return a * b; });
+}
+
+template <typename Vec>
+[[nodiscard]] static constexpr float dot(const Vec& a, const Vec& b) {
+    return sum(a * b);
+}
 
 template <typename PointType>
 struct Segment {
@@ -155,9 +129,16 @@ struct Polygon {
     std::vector<Polygon> holes;
 
     template <typename Tx>
-    [[nodiscard]] Polygon transform(Tx&& tx) const {
-        auto polys = vertices | std::views::transform(tx);
-        return {{polys.begin(), polys.end()}};
+    [[nodiscard]] Polygon transform(const Tx& tx) const {
+        auto result = *this;
+        for (auto& v : result.vertices) {
+            std::invoke(tx, v);
+        }
+
+        for (auto& h : result.holes) {
+            transform(tx, h);
+        }
+        return result;
     }
 
     [[nodiscard]] Polygon scale(float scalar) const {

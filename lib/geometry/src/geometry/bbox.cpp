@@ -2,7 +2,7 @@
 
 namespace slicer {
 
-BBox2D getAABB(std::span<const Vec2> vertices) {
+BBox2D getAABB(const std::vector<Vec2>& vertices) {
     auto result = BBox2D{};
     for (const auto& vertex : vertices) {
         result.extend(vertex);
@@ -10,7 +10,7 @@ BBox2D getAABB(std::span<const Vec2> vertices) {
     return result;
 }
 
-BBox3D getAABB(std::span<const Vec3> vertices) {
+BBox3D getAABB(const std::vector<Vec3>& vertices) {
     auto result = BBox3D{};
     for (const auto& vertex : vertices) {
         result.extend(vertex);

@@ -1,5 +1,7 @@
 #include "catch2/generators/catch_generators.hpp"
 
+#include <type_traits>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "geometry/intersect.hpp"
@@ -18,6 +20,10 @@ std::ostream& operator<<(std::ostream& os, const std::optional<Vec3>& v) {
         return os << *v;
     }
     return os << "<null>";
+}
+
+TEST_CASE("Geometry types are POD") {
+    static_assert(std::is_pod<Vec3>::value, "Vec3 is not pod");
 }
 
 TEST_CASE("Line and zPosition intersection") {
