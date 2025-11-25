@@ -7,30 +7,6 @@
 
 namespace slicer {
 
-namespace detail {
-
-template <typename Vec, typename Op, std::size_t... I>
-[[nodiscard]] constexpr Vec makeUnaryOpImpl(const Vec& a, Op op, std::index_sequence<I...>) {
-    return Vec{op(a.data()[I])...};
-}
-
-template <typename Vec, typename Op, std::size_t... I>
-[[nodiscard]] constexpr Vec makeBinaryOpImpl(const Vec& a, const Vec& b, Op op, std::index_sequence<I...>) {
-    return Vec{op(a.data()[I], b.data()[I])...};
-}
-
-}
-
-template <typename Vec, typename Op>
-constexpr Vec makeUnaryOp(const Vec& a, Op op) {
-    return detail::makeUnaryOpImpl(a, op, std::make_index_sequence<Vec::dim>{});
-}
-
-template <typename Vec, typename Op>
-constexpr Vec makeBinaryOp(const Vec& a, const Vec& b, Op op) {
-    return detail::makeBinaryOpImpl(a, b, op, std::make_index_sequence<Vec::dim>{});
-}
-
 struct Vec2 {
     using ValueType = float;
     static constexpr std::size_t dim = 2;
@@ -38,27 +14,38 @@ struct Vec2 {
     ValueType x;
     ValueType y;
 
-    [[nodiscard]] std::array<float, 2> data() const { return {x, y}; }
-
     [[nodiscard]] bool operator==(const Vec2& other) const {
         return x == other.x && y == other.y;
     }
 
     [[nodiscard]] constexpr Vec2 operator+(const Vec2& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av + bv; });
+        return {x + other.x, y + other.y};
     }
 
     [[nodiscard]] constexpr Vec2 operator-(const Vec2& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av - bv; });
+        return {x - other.x, y - other.y};
     }
 
     [[nodiscard]] constexpr Vec2 operator*(const Vec2& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av * bv; });
+        return {x * other.x, y * other.y};
     }
 
     [[nodiscard]] constexpr Vec2 operator*(float s) const {
-        return makeUnaryOp(*this, [&s](float a) { return a * s; });
+        return {x * s, y * s};
     }
+
+    [[nodiscard]] constexpr float sum() const {
+        return x + y;
+    }
+
+    [[nodiscard]] constexpr float product() const {
+        return x * y;
+    }
+
+    [[nodiscard]] static constexpr float dot(const Vec2& a, const Vec2& b) {
+        return (a * b).sum();
+    }
+
 };
 
 struct Vec3 {
@@ -73,42 +60,36 @@ struct Vec3 {
         return x == other.x && y == other.y && z == other.z;
     }
 
-    [[nodiscard]] std::array<float, 3> data() const { return {x, y, z}; }
-
     [[nodiscard]] constexpr Vec3 operator+(const Vec3& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av + bv; });
+        return {x + other.x, y + other.y, z + other.z};
     }
 
     [[nodiscard]] constexpr Vec3 operator-(const Vec3& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av - bv; });
+        return {x - other.x, y - other.y, z - other.z};
     }
 
     [[nodiscard]] constexpr Vec3 operator*(const Vec3& other) const {
-        return makeBinaryOp(*this, other, [](float av, float bv) { return av * bv; });
+        return {x * other.x, y * other.y, z * other.z};
     }
 
     [[nodiscard]] constexpr Vec3 operator*(float s) const {
-        return makeUnaryOp(*this, [&s](float a) { return a * s; });
+        return {x * s, y * s, z * s};
+    }
+
+    [[nodiscard]] constexpr float sum() const {
+        return x + y + z;
+    }
+
+    [[nodiscard]] constexpr float product() const {
+        return x * y * z;
+    }
+
+    [[nodiscard]] static constexpr float dot(const Vec3& a, const Vec3& b) {
+        return (a * b).sum();
     }
 
     [[nodiscard]] Vec2 toVec2() const { return {x, y}; }
 };
-
-template <typename Vec>
-[[nodiscard]] constexpr float sum(const Vec& a) {
-    return std::accumulate(a.data().begin(), a.data().end(), 0.0f);
-}
-
-template <typename Vec>
-[[nodiscard]] constexpr float product(const Vec& a) {
-    return std::accumulate(a.data().begin(), a.data().end(), 1.0f,
-        [](float a, float b) { return a * b; });
-}
-
-template <typename Vec>
-[[nodiscard]] static constexpr float dot(const Vec& a, const Vec& b) {
-    return sum(a * b);
-}
 
 template <typename PointType>
 struct Segment {
@@ -134,7 +115,6 @@ struct Polygon {
         for (auto& v : result.vertices) {
             std::invoke(tx, v);
         }
-
         for (auto& h : result.holes) {
             transform(tx, h);
         }

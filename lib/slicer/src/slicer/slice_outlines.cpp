@@ -123,7 +123,7 @@ std::vector<SliceOutlineWithWinding> identifyWindings(const std::vector<SliceOut
     return {result.begin(), result.end()};
 }
 
-bool OutlineHierarchyNode::insert(std::size_t i, const std::vector<SliceOutlineWithWinding>&  sortedOutlines) {
+bool OutlineHierarchyNode::insert(std::size_t i, std::span<const SliceOutlineWithWinding> sortedOutlines) {
     if (!m_index || isInside(sortedOutlines[i].outline, sortedOutlines[*m_index].outline)) {
         for (auto& child : m_children) {
             if (child.insert(i, sortedOutlines)) {

@@ -106,8 +106,7 @@ ClassifiedTriangle classify(const Triangle3D& triangle, float z) {
 }
 
 [[nodiscard]] bool anyPointOnZ(const std::array<PlaneRelation, 3>& zRelations) {
-    // TODO: Probably want anyEqualTo here.
-    return allEqualTo(zRelations, PlaneRelation::On);
+    return anyEqualTo(zRelations, PlaneRelation::On);
 }
 
 [[nodiscard]] Vec3 getIntersectionOrThrow(const Vec3& lower, const Vec3& upper, float zPosition) {
@@ -139,12 +138,12 @@ std::optional<Vec3> intersect(const Segment3D& segment, float zPosition) {
     const auto plane = Plane{{0, 0, zPosition}, {0, 0, 1}};
 
     // Substituting line equation into plane and solving: t = dot((P0 - L0), N) / dot(D, N).
-    const auto d = dot(ray.direction, plane.normal);
+    const auto d = Vec3::dot(ray.direction, plane.normal);
     if (d == 0) {
         return std::nullopt;
     }
 
-    const auto t = dot((plane.p0 - ray.p0), plane.normal) / d;
+    const auto t = Vec3::dot((plane.p0 - ray.p0), plane.normal) / d;
     if (0 <= t && t <= 1) {
         return {ray.p0 + ray.direction * t};
     }

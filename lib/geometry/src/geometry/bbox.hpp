@@ -32,8 +32,7 @@ struct BBoxHelpers<Vec2> {
         return {std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y)};
     }
     [[nodiscard]] static ValueType area(const Vec2& a, const Vec2& b) {
-        auto spans = makeBinaryOp(a, b, [](ValueType min, ValueType max) { return max - min; });
-        return product(spans);
+        return Vec2{b.x - a.x, b.y - a.y}.product();
     }
 };
 
@@ -81,8 +80,7 @@ struct BBoxHelpers<Vec3> {
         return {std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y), std::max(lhs.z, rhs.z)};
     }
     [[nodiscard]] static float area(const Vec3& a, const Vec3& b) {
-        auto spans = makeBinaryOp(a, b, [](float min, float max) { return max - min; });
-        return product(spans);
+        return Vec3{b.x - a.x, b.y - a.y, b.z - a.z}.product();
     }
 };
 
